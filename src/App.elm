@@ -1,57 +1,45 @@
 module App exposing (..)
 
-import Html exposing (Html, text, div, img)
-import Html.Attributes exposing (src)
-
-
----- MODEL ----
+import Html as H
+import Html.Attributes as H
+import Mouse
+import Task
+import Svg as S
+import Svg.Attributes as S
 
 
 type alias Model =
     { message : String
-    , logo : String
     }
 
 
-init : String -> ( Model, Cmd Msg )
-init path =
-    ( { message = "Your Elm App is working!", logo = path }, Cmd.none )
-
-
-
----- UPDATE ----
-
-
 type Msg
-    = NoOp
+    = MouseMove Mouse.Position
+
+
+init : ( Model, Cmd Msg )
+init =
+    { message = "Hello!"
+    }
+        ! [ ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        MouseMove position -> model ! []
 
 
-
----- VIEW ----
-
-
-view : Model -> Html Msg
-view model =
-    div []
-        [ img [ src model.logo ] []
-        , div [] [ text model.message ]
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ Mouse.clicks MouseMove
         ]
 
 
-
----- PROGRAM ----
-
-
-main : Program String Model Msg
-main =
-    Html.programWithFlags
-        { view = view
-        , init = init
-        , update = update
-        , subscriptions = \_ -> Sub.none
-        }
+view : Model -> H.Html Msg
+view model =
+    H.div [ H.id "app" ]
+        [ H.div [ H.id "overlay"] [ H.text model.message ]
+        , S.svg [ ] []
+        ]

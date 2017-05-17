@@ -1,7 +1,6 @@
-require('./main.css')
-var logoPath = require('./logo.svg')
-var Elm = require('./App.elm')
+require('./main.css');
+var Elm = require('./Main.elm');
 
-var root = document.getElementById('root')
+var root = document.getElementById('root');
 
-Elm.App.embed(root, logoPath)
+Elm.Main.embed(root);
