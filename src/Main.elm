@@ -9,5 +9,5 @@ main =
         { view = App.view
         , init = App.init
         , update = App.update
-        , subscriptions = App.subscriptions --\_ -> Sub.none
+        , subscriptions = App.subscriptions
         }
