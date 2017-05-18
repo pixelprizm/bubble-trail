@@ -17,15 +17,18 @@ gridSizeInPx =
 
 spotRadius : Float
 spotRadius =
-    0.9 * gridSizeInPx * 0.5
+    0.9 * gridSizeInPx * 0.5 * 2
 
 
 spotCount : Int
 spotCount =
+    --sizePeriod
     sizePeriod * colorPeriod
 
 
 
+--* 6
+--* 3
 --colorPeriod
 
 
@@ -34,14 +37,22 @@ colorPeriod =
     sizePeriod - 1
 
 
+
+--sizePeriod * 2
+
+
 sizePeriod : Int
 sizePeriod =
     12
 
 
+
+--120
+
+
 naturalColors : Bool
 naturalColors =
-    True
+    False
 
 
 type alias GridCoords =
@@ -57,8 +68,7 @@ type alias Spot =
 
 
 type alias Model =
-    { message : String
-    , spots : List Spot
+    { spots : List Spot
     }
 
 
@@ -69,8 +79,7 @@ type Msg
 
 init : ( Model, Cmd Msg )
 init =
-    { message = "Hello!"
-    , spots = []
+    { spots = []
     }
         ! []
 
@@ -126,7 +135,7 @@ subscriptions model =
 view : Model -> H.Html Msg
 view model =
     H.div [ H.id "app" ]
-        [ H.div [ H.id "overlay" ] [ H.text model.message ]
+        [ H.div [ H.id "overlay" ] [ H.text "" ]
         , S.svg [ SA.id "graphics" ]
             (model.spots
                 |> List.indexedMap viewSpot
@@ -138,35 +147,100 @@ view model =
 
 viewSpot : Int -> Spot -> S.Svg Msg
 viewSpot index spot =
-    S.circle
-        [ SA.cx ((toFloat spot.location.x * gridSizeInPx) + (gridSizeInPx / 2) |> toString)
-        , SA.cy ((toFloat spot.location.y * gridSizeInPx) + (gridSizeInPx / 2) |> toString)
-        , SA.r
-            --(spotRadius |> toString)
-            (let
-                i =
-                    (index % sizePeriod) + 1
-             in
-                --spotRadius * toFloat index * 0.1 |> toString
-                spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod |> toString
-             --spotRadius / toFloat i |> toString
+    S.g []
+        (let
+            i =
+                (index % sizePeriod)
+
+            i1 =
+                i + 1
+
+            i1WithGaps =
+                (index % (sizePeriod * 2))
+
+            useInner =
+                False
+
+            outerRadius =
+                --case i of
+                --    0 ->
+                --        spotRadius
+                --    _ ->
+                --        spotRadius / 2
+                --spotRadius * toFloat index * 0.1
+                spotRadius * toFloat (sizePeriod - i1) / toFloat sizePeriod
+
+            --spotRadius * toFloat (sizePeriod - i1WithGaps) / toFloat sizePeriod
+            --spotRadius / toFloat i1
+            --spotRadius
+            innerRadius =
+                --outerRadius * 0.8
+                --spotRadius / toFloat i1
+                0.8 * spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod
+
+            x =
+                (toFloat spot.location.x * gridSizeInPx) + (gridSizeInPx / 2)
+
+            y =
+                (toFloat spot.location.y * gridSizeInPx) + (gridSizeInPx / 2)
+
+            colorRatio =
+                toFloat index / toFloat colorPeriod
+
+            hue =
+                colorRatio
+                    * (if naturalColors then
+                        240
+                       else
+                        360
+                      )
+
+            outerHsl =
+                { h = hue
+
+                --{ h = 0
+                , s = 100
+
+                --, s = 0
+                --, l = 70
+                , l = 50
+
+                --, l = 0
+                }
+
+            innerHsl =
+                { h = hue
+
+                --{ h = hue
+                --, s = 0
+                , s = 100
+
+                --, l = 0
+                --, l = 70
+                , l = 50
+                }
+
+            hslToString { h, s, l } =
+                "hsl(" ++ toString h ++ "," ++ toString s ++ "%," ++ toString l ++ "%)"
+         in
+            ([ S.circle
+                [ SA.cx (x |> toString)
+                , SA.cy (y |> toString)
+                , SA.r (outerRadius |> toString)
+                , SA.fill (outerHsl |> hslToString)
+                ]
+                []
+             ]
+                ++ if useInner then
+                    [ S.circle
+                        [ SA.cx (x |> toString)
+                        , SA.cy (y |> toString)
+                        , SA.r (innerRadius |> toString)
+                        , SA.fill (innerHsl |> hslToString)
+                        ]
+                        []
+                    ]
+                   else
+                    []
             )
-        , SA.fill
-            ("hsl("
-                ++ toString
-                    (let
-                        ratio : Float
-                        ratio =
-                            toFloat index / toFloat colorPeriod
-                     in
-                        ratio
-                            * (if naturalColors then
-                                360
-                               else
-                                240
-                              )
-                    )
-                ++ ", 100%, 50%)"
-            )
-        ]
-        []
+        )

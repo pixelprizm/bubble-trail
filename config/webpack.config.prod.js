@@ -24,7 +24,7 @@ module.exports = {
     path: paths.dist,
 
     // Append leading slash when production assets are referenced in the html.
-    publicPath: process.env.SERVED_PATH || '/',
+    publicPath: process.env.SERVED_PATH || './',
 
     // Generated JS files.
     filename: 'js/[name].[chunkhash:8].js'
