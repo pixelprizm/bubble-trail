@@ -3,23 +3,45 @@ module App exposing (..)
 import Html as H
 import Html.Attributes as H
 import Mouse
+import Char
+import Debug
+import Keyboard
 import Svg as S
-import Svg.Attributes as S
+import Svg.Attributes as SA
 
 
-gridSizeInPx : Int
+gridSizeInPx : Float
 gridSizeInPx =
     20
 
 
-spotDiameter : Int
-spotDiameter =
-    round 0.9 * gridSizeInPx
+spotRadius : Float
+spotRadius =
+    0.9 * gridSizeInPx * 0.5
 
 
 spotCount : Int
 spotCount =
-    64
+    sizePeriod * colorPeriod
+
+
+
+--colorPeriod
+
+
+colorPeriod : Int
+colorPeriod =
+    sizePeriod - 1
+
+
+sizePeriod : Int
+sizePeriod =
+    12
+
+
+naturalColors : Bool
+naturalColors =
+    True
 
 
 type alias GridCoords =
@@ -30,6 +52,7 @@ type alias GridCoords =
 
 type alias Spot =
     { location : GridCoords
+    , index : Int
     }
 
 
@@ -41,6 +64,7 @@ type alias Model =
 
 type Msg
     = MouseMove Mouse.Position
+    | KeyPress Keyboard.KeyCode
 
 
 init : ( Model, Cmd Msg )
@@ -59,21 +83,29 @@ update msg model =
                 location : GridCoords
                 location =
                     GridCoords
-                        (position.x // gridSizeInPx)
-                        (position.y // gridSizeInPx)
+                        (position.x // round gridSizeInPx)
+                        (position.y // round gridSizeInPx)
             in
                 case List.head model.spots of
                     Nothing ->
-                        { model | spots = [ Spot location ] } ! []
+                        { model | spots = [ Spot location 0 ] } ! []
 
                     Just spot ->
                         if spot.location.x == location.x && spot.location.y == location.y then
                             model ! []
                         else
                             { model
-                                | spots = (Spot location) :: model.spots
+                                | spots = (Spot location (spot.index + 1)) :: model.spots
                             }
                                 ! []
+
+        KeyPress keyCode ->
+            case Debug.log "code" (Char.fromCode keyCode) of
+                'e' ->
+                    model ! []
+
+                _ ->
+                    model ! []
     )
         |> limitSpots
 
@@ -87,6 +119,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Mouse.moves MouseMove
+        , Keyboard.presses KeyPress
         ]
 
 
@@ -94,9 +127,11 @@ view : Model -> H.Html Msg
 view model =
     H.div [ H.id "app" ]
         [ H.div [ H.id "overlay" ] [ H.text model.message ]
-        , S.svg [ S.id "graphics" ]
+        , S.svg [ SA.id "graphics" ]
             (model.spots
                 |> List.indexedMap viewSpot
+                -- Reverse so that new spots show up over old spots:
+                |> List.reverse
             )
         ]
 
@@ -104,18 +139,32 @@ view model =
 viewSpot : Int -> Spot -> S.Svg Msg
 viewSpot index spot =
     S.circle
-        [ S.cx ((spot.location.x * gridSizeInPx) + (gridSizeInPx // 2) |> toString)
-        , S.cy ((spot.location.y * gridSizeInPx) + (gridSizeInPx // 2) |> toString)
-        , S.r (spotDiameter // 2 |> toString)
-        , S.fill
+        [ SA.cx ((toFloat spot.location.x * gridSizeInPx) + (gridSizeInPx / 2) |> toString)
+        , SA.cy ((toFloat spot.location.y * gridSizeInPx) + (gridSizeInPx / 2) |> toString)
+        , SA.r
+            --(spotRadius |> toString)
+            (let
+                i =
+                    (index % sizePeriod) + 1
+             in
+                --spotRadius * toFloat index * 0.1 |> toString
+                spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod |> toString
+             --spotRadius / toFloat i |> toString
+            )
+        , SA.fill
             ("hsl("
                 ++ toString
                     (let
                         ratio : Float
                         ratio =
-                            toFloat index / toFloat spotCount
+                            toFloat index / toFloat colorPeriod
                      in
-                        ratio * 240
+                        ratio
+                            * (if naturalColors then
+                                360
+                               else
+                                240
+                              )
                     )
                 ++ ", 100%, 50%)"
             )
