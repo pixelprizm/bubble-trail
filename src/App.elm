@@ -1,5 +1,7 @@
 module App exposing (..)
 
+-- Third-party
+
 import Html as H
 import Html.Attributes as H
 import Mouse
@@ -8,6 +10,11 @@ import Debug
 import Keyboard
 import Svg as S
 import Svg.Attributes as SA
+
+
+-- Mine
+
+import CreativeCommonsLicense
 
 
 gridSizeInPx : Float
@@ -22,32 +29,23 @@ spotRadius =
 
 spotCount : Int
 spotCount =
+    --* 6
+    --* 3
+    --colorPeriod
     --sizePeriod
     sizePeriod * colorPeriod
 
 
-
---* 6
---* 3
---colorPeriod
-
-
 colorPeriod : Int
 colorPeriod =
+    --sizePeriod * 2
     sizePeriod - 1
-
-
-
---sizePeriod * 2
 
 
 sizePeriod : Int
 sizePeriod =
+    --120
     12
-
-
-
---120
 
 
 naturalColors : Bool
@@ -55,10 +53,47 @@ naturalColors =
     False
 
 
-type alias GridCoords =
-    { x : Int
-    , y : Int
-    }
+gridShape : GridShape
+gridShape =
+    HexPointyTop
+
+
+pixelToGrid : GridShape -> PixelCoords -> GridCoords
+pixelToGrid shape { x, y } =
+    case shape of
+        Square ->
+            GridCoords
+                (x / gridSizeInPx |> round)
+                (y / gridSizeInPx |> round)
+
+        HexFlatTop ->
+            GridCoords
+                (x * 2 / 3 / gridSizeInPx |> round)
+                ((-x / 3 + sqrt 3 / 3 * y) / gridSizeInPx |> round)
+
+        HexPointyTop ->
+            GridCoords
+                ((x * sqrt 3 / 3 - y / 3) / gridSizeInPx |> round)
+                (y * 2 / 3 / gridSizeInPx |> round)
+
+
+gridToCenterPixel : GridShape -> GridCoords -> PixelCoords
+gridToCenterPixel shape { q, r } =
+    case shape of
+        Square ->
+            PixelCoords
+                ((toFloat q * gridSizeInPx) + (gridSizeInPx / 2))
+                ((toFloat r * gridSizeInPx) + (gridSizeInPx / 2))
+
+        HexFlatTop ->
+            PixelCoords
+                (gridSizeInPx * toFloat q * 3 / 2)
+                (gridSizeInPx * sqrt 3 * (toFloat r + toFloat q / 2))
+
+        HexPointyTop ->
+            PixelCoords
+                (gridSizeInPx * sqrt 3 * (toFloat q + toFloat r / 2))
+                (gridSizeInPx * toFloat r * 3 / 2)
 
 
 type alias Spot =
@@ -91,16 +126,18 @@ update msg model =
             let
                 location : GridCoords
                 location =
-                    GridCoords
-                        (position.x // round gridSizeInPx)
-                        (position.y // round gridSizeInPx)
+                    pixelToGrid gridShape
+                        (PixelCoords
+                            (toFloat position.x)
+                            (toFloat position.y)
+                        )
             in
                 case List.head model.spots of
                     Nothing ->
                         { model | spots = [ Spot location 0 ] } ! []
 
                     Just spot ->
-                        if spot.location.x == location.x && spot.location.y == location.y then
+                        if spot.location == location then
                             model ! []
                         else
                             { model
@@ -135,7 +172,9 @@ subscriptions model =
 view : Model -> H.Html Msg
 view model =
     H.div [ H.id "app" ]
-        [ H.div [ H.id "overlay" ] [ H.text "" ]
+        [ H.div [ H.id "overlay" ]
+            [ CreativeCommonsLicense.view [ H.class "license" ]
+            ]
         , S.svg [ SA.id "graphics" ]
             (model.spots
                 |> List.indexedMap viewSpot
@@ -178,11 +217,8 @@ viewSpot index spot =
                 --spotRadius / toFloat i1
                 0.8 * spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod
 
-            x =
-                (toFloat spot.location.x * gridSizeInPx) + (gridSizeInPx / 2)
-
-            y =
-                (toFloat spot.location.y * gridSizeInPx) + (gridSizeInPx / 2)
+            { x, y } =
+                gridToCenterPixel gridShape spot.location
 
             colorRatio =
                 toFloat index / toFloat colorPeriod

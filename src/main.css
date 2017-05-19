@@ -40,3 +40,9 @@ svg#graphics {
   z-index: 0;
   background-color: #22222e;
 }
+
+.license {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+}
