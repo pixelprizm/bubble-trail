@@ -37,19 +37,19 @@ pixelToGrid { diameter, shape } { x, y } =
 
         HexPointyTop ->
             let
-                miniW =
+                miniWidth =
                     diameter / 2
 
-                miniH =
-                    miniW / (sqrt 3)
+                miniHeight =
+                    miniWidth / (sqrt 3)
 
                 miniX : Float
                 miniX =
-                    x / miniW
+                    x / miniWidth
 
                 miniY : Float
                 miniY =
-                    y / miniH
+                    y / miniHeight
 
                 miniCol : Int
                 miniCol =
@@ -57,15 +57,8 @@ pixelToGrid { diameter, shape } { x, y } =
 
                 miniRow : Int
                 miniRow =
-                    floor miniY
-
-                offsetX : Float
-                offsetX =
-                    miniX - toFloat miniCol
-
-                offsetY : Float
-                offsetY =
-                    miniY - toFloat miniRow
+                    Debug.log "adjustedMiniRow" <|
+                        floor miniY
 
                 miniRowColToGrid : Int -> Int -> GridCoords
                 miniRowColToGrid mCol mRow =
@@ -75,39 +68,80 @@ pixelToGrid { diameter, shape } { x, y } =
 
                 miniRowMod6 =
                     miniRow % 6
-            in
-                if miniRowMod6 == 1 || miniRowMod6 == 4 then
-                    -- This is in a hard row (the mini-row with the zig zags)
-                    if (miniCol + miniRow // 3) % 2 == 0 then
-                        if offsetY < 1 - offsetX then
-                            miniRowColToGrid
-                                (miniCol)
-                                (miniRow - 1)
-                        else
-                            miniRowColToGrid
-                                (miniCol + 1)
-                                (miniRow + 2)
-                    else if offsetY < offsetX then
-                        miniRowColToGrid
-                            (miniCol + 1)
-                            (miniRow - 1)
-                    else
-                        miniRowColToGrid
-                            (miniCol)
-                            (miniRow + 2)
-                else
-                    -- This is an easy row (one of the mini-rows without zig zags)
-                    --Debug.log "easy row, calculatedCoords"
+
+                gridCoordsEasyRow : Int -> Int -> GridCoords
+                gridCoordsEasyRow mC mR =
+                    -- This function is defined if mR is an easy row (one of the
+                    --   mini-rows without zig zags)
                     let
                         gridY =
-                            (toFloat miniRow + 1) / 3 |> floor
+                            (toFloat mR + 1) / 3 |> floor
 
                         gridX =
-                            toFloat (miniCol + (gridY + 1) % 2) / 2 |> floor
+                            toFloat (mC + (gridY + 1) % 2) / 2 |> floor
                     in
-                        GridCoords
-                            gridX
-                            gridY
+                        Debug.log "coords" <|
+                            GridCoords
+                                gridX
+                                gridY
+            in
+                if miniRowMod6 == 1 || miniRowMod6 == 4 then
+                    -- This is in a hard row (the mini-row with the zig zags).
+                    -- Change the data into an easy row.
+                    let
+                        offsetX : Float
+                        offsetX =
+                            miniX - toFloat miniCol
+
+                        offsetY : Float
+                        offsetY =
+                            miniY - toFloat miniRow
+
+                        old =
+                            if (miniCol + miniRow // 3) % 2 == 0 then
+                                if offsetY < 1 - offsetX then
+                                    miniRowColToGrid
+                                        (miniCol)
+                                        (miniRow - 1)
+                                else
+                                    miniRowColToGrid
+                                        (miniCol + 1)
+                                        (miniRow + 2)
+                            else if offsetY < offsetX then
+                                miniRowColToGrid
+                                    (miniCol + 1)
+                                    (miniRow - 1)
+                            else
+                                miniRowColToGrid
+                                    (miniCol)
+                                    (miniRow + 2)
+
+                        -- 1 if the zigzag is like y=(1-x)+miniRow, 0 if the zigzag is like y=(x)+miniRow
+                        negativeSlopeIndicator : Int
+                        negativeSlopeIndicator =
+                            (miniCol + miniRow) % 2
+
+                        -- This is like y=1-x or y=x
+                        zigzagLineValue : Float
+                        zigzagLineValue =
+                            toFloat negativeSlopeIndicator
+                                + (toFloat (1 - 2 * negativeSlopeIndicator) * offsetX)
+
+                        -- This is 0 if y>=x, -1 if y<x
+                        decreaseRowIndicator : Int
+                        decreaseRowIndicator =
+                            floor (offsetY - zigzagLineValue)
+
+                        adjustedMiniRow : Int
+                        adjustedMiniRow =
+                            miniRow
+                                + (1 + 2 * decreaseRowIndicator)
+                    in
+                        gridCoordsEasyRow
+                            miniCol
+                            adjustedMiniRow
+                else
+                    gridCoordsEasyRow miniCol miniRow
 
         HexFlatTop ->
             GridCoords 0 0
