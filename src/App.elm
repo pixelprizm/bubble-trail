@@ -15,16 +15,20 @@ import Svg.Attributes as SA
 -- Mine
 
 import CreativeCommonsLicense
+import Grid
 
 
-gridSizeInPx : Float
-gridSizeInPx =
-    20
+gridConfig : Grid.GridConfig
+gridConfig =
+    { diameter = 30
+    , shape = Grid.HexPointyTop
+    }
 
 
 spotRadius : Float
 spotRadius =
-    0.9 * gridSizeInPx * 0.5 * 2
+    --0.9 * (gridConfig.diameter / 2)
+    (gridConfig.diameter / 2)
 
 
 spotCount : Int
@@ -53,51 +57,8 @@ naturalColors =
     False
 
 
-gridShape : GridShape
-gridShape =
-    HexPointyTop
-
-
-pixelToGrid : GridShape -> PixelCoords -> GridCoords
-pixelToGrid shape { x, y } =
-    case shape of
-        Square ->
-            GridCoords
-                (x / gridSizeInPx |> round)
-                (y / gridSizeInPx |> round)
-
-        HexFlatTop ->
-            GridCoords
-                (x * 2 / 3 / gridSizeInPx |> round)
-                ((-x / 3 + sqrt 3 / 3 * y) / gridSizeInPx |> round)
-
-        HexPointyTop ->
-            GridCoords
-                ((x * sqrt 3 / 3 - y / 3) / gridSizeInPx |> round)
-                (y * 2 / 3 / gridSizeInPx |> round)
-
-
-gridToCenterPixel : GridShape -> GridCoords -> PixelCoords
-gridToCenterPixel shape { q, r } =
-    case shape of
-        Square ->
-            PixelCoords
-                ((toFloat q * gridSizeInPx) + (gridSizeInPx / 2))
-                ((toFloat r * gridSizeInPx) + (gridSizeInPx / 2))
-
-        HexFlatTop ->
-            PixelCoords
-                (gridSizeInPx * toFloat q * 3 / 2)
-                (gridSizeInPx * sqrt 3 * (toFloat r + toFloat q / 2))
-
-        HexPointyTop ->
-            PixelCoords
-                (gridSizeInPx * sqrt 3 * (toFloat q + toFloat r / 2))
-                (gridSizeInPx * toFloat r * 3 / 2)
-
-
 type alias Spot =
-    { location : GridCoords
+    { gridCoords : Grid.GridCoords
     , index : Int
     }
 
@@ -124,24 +85,23 @@ update msg model =
     (case msg of
         MouseMove position ->
             let
-                location : GridCoords
-                location =
-                    pixelToGrid gridShape
-                        (PixelCoords
-                            (toFloat position.x)
-                            (toFloat position.y)
-                        )
+                mouseGridCoords : Grid.GridCoords
+                mouseGridCoords =
+                    Grid.pixelToGrid gridConfig
+                        { x = (toFloat position.x)
+                        , y = (toFloat position.y)
+                        }
             in
                 case List.head model.spots of
                     Nothing ->
-                        { model | spots = [ Spot location 0 ] } ! []
+                        { model | spots = [ Spot mouseGridCoords 0 ] } ! []
 
                     Just spot ->
-                        if spot.location == location then
+                        if spot.gridCoords == mouseGridCoords then
                             model ! []
                         else
                             { model
-                                | spots = (Spot location (spot.index + 1)) :: model.spots
+                                | spots = (Spot mouseGridCoords (spot.index + 1)) :: model.spots
                             }
                                 ! []
 
@@ -176,10 +136,36 @@ view model =
             [ CreativeCommonsLicense.view [ H.class "license" ]
             ]
         , S.svg [ SA.id "graphics" ]
-            (model.spots
+            ((model.spots
                 |> List.indexedMap viewSpot
                 -- Reverse so that new spots show up over old spots:
                 |> List.reverse
+             )
+             --++ ((List.range 0 99)
+             --        |> List.map
+             --            (\i ->
+             --                S.g []
+             --                    -- Vertical line
+             --                    [ S.line
+             --                        [ SA.x1 (toString (toFloat i * gridConfig.diameter / 2))
+             --                        , SA.y1 "0"
+             --                        , SA.x2 (toString (toFloat i * gridConfig.diameter / 2))
+             --                        , SA.y2 "4000"
+             --                        , SA.stroke "white"
+             --                        ]
+             --                        []
+             --                    -- Horizontal line
+             --                    , S.line
+             --                        [ SA.x1 "0"
+             --                        , SA.y1 (toString (toFloat i * gridConfig.diameter / 2 / sqrt 3))
+             --                        , SA.x2 "4000"
+             --                        , SA.y2 (toString (toFloat i * gridConfig.diameter / 2 / sqrt 3))
+             --                        , SA.stroke "white"
+             --                        ]
+             --                        []
+             --                    ]
+             --            )
+             --   )
             )
         ]
 
@@ -207,8 +193,9 @@ viewSpot index spot =
                 --    _ ->
                 --        spotRadius / 2
                 --spotRadius * toFloat index * 0.1
-                spotRadius * toFloat (sizePeriod - i1) / toFloat sizePeriod
+                spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod
 
+            --spotRadius
             --spotRadius * toFloat (sizePeriod - i1WithGaps) / toFloat sizePeriod
             --spotRadius / toFloat i1
             --spotRadius
@@ -218,7 +205,7 @@ viewSpot index spot =
                 0.8 * spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod
 
             { x, y } =
-                gridToCenterPixel gridShape spot.location
+                Grid.gridToCenterPixel gridConfig spot.gridCoords
 
             colorRatio =
                 toFloat index / toFloat colorPeriod

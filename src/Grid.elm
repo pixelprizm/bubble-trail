@@ -1,5 +1,7 @@
 module Grid exposing (..)
 
+import Debug
+
 
 type GridShape
     = Square
@@ -14,8 +16,8 @@ type alias GridConfig =
 
 
 type alias GridCoords =
-    { q : Int
-    , r : Int
+    { gX : Int
+    , gY : Int
     }
 
 
@@ -29,9 +31,9 @@ pixelToGrid : GridConfig -> PixelCoords -> GridCoords
 pixelToGrid { diameter, shape } { x, y } =
     case shape of
         Square ->
-            PixelCoords
-                (diameter * round (x / diameter))
-                (diameter * round (y / diameter))
+            GridCoords
+                (floor (x / diameter))
+                (floor (y / diameter))
 
         HexPointyTop ->
             let
@@ -57,32 +59,27 @@ pixelToGrid { diameter, shape } { x, y } =
                 miniRow =
                     floor miniY
 
-
                 offsetX : Float
                 offsetX =
-                    miniX - miniCol
+                    miniX - toFloat miniCol
 
                 offsetY : Float
                 offsetY =
-                    miniY - miniRow
+                    miniY - toFloat miniRow
 
                 miniRowColToGrid : Int -> Int -> GridCoords
-                miniRowColToGrid q r =
+                miniRowColToGrid mCol mRow =
                     GridCoords
-                        (q // 2)
-                        (r // 3)
+                        (mCol // 2)
+                        (mRow // 3)
 
-                miniRow6 = miniRow % 6
-
-                bigRow = miniRow // 3
-
+                miniRowMod6 =
+                    miniRow % 6
             in
-                if miniRow6 == 1 || miniRow == 4
-                then
-                    if (miniCol + bigRow) % 2 == 0
-                    then
-                        if offsetY < 1 - offsetX
-                        then
+                if miniRowMod6 == 1 || miniRowMod6 == 4 then
+                    -- This is in a hard row (the mini-row with the zig zags)
+                    if (miniCol + miniRow // 3) % 2 == 0 then
+                        if offsetY < 1 - offsetX then
                             miniRowColToGrid
                                 (miniCol)
                                 (miniRow - 1)
@@ -90,45 +87,49 @@ pixelToGrid { diameter, shape } { x, y } =
                             miniRowColToGrid
                                 (miniCol + 1)
                                 (miniRow + 2)
+                    else if offsetY < offsetX then
+                        miniRowColToGrid
+                            (miniCol + 1)
+                            (miniRow - 1)
                     else
-                        if offsetY < offsetX
-                        then
-                            miniRowColToGrid
-                                (miniCol + 1)
-                                (miniRow - 1)
-                        else
-                            miniRowColToGrid
-                                (miniCol)
-                                (miniRow + 2)
+                        miniRowColToGrid
+                            (miniCol)
+                            (miniRow + 2)
                 else
-                    GridCoords
-                        (if bigRow % 2 == 0 then
-                            round (miniX / 2)
-                         else
-                            floor (miniX / 2)
-                        )
-                        (round (miniY / 3))
+                    -- This is an easy row (one of the mini-rows without zig zags)
+                    --Debug.log "easy row, calculatedCoords"
+                    let
+                        gridY =
+                            (toFloat miniRow + 1) / 3 |> floor
+
+                        gridX =
+                            toFloat (miniCol + (gridY + 1) % 2) / 2 |> floor
+                    in
+                        GridCoords
+                            gridX
+                            gridY
+
+        HexFlatTop ->
+            GridCoords 0 0
 
 
+gridToCenterPixel : GridConfig -> GridCoords -> PixelCoords
+gridToCenterPixel { diameter, shape } { gX, gY } =
+    case shape of
+        Square ->
+            PixelCoords
+                (diameter * toFloat gX)
+                (diameter * toFloat gY)
 
-
-                --(round <|
-                --    miniX
-                --        / 2
-                --)
-                --    (if (miniRow) % 3 == 1 then
-                --        (if (miniCol) % 2 == 0 then
-                --            ()
-                --            --(if miniX - (miniCol) )
-                --         else
-                --            ()
-                --        )
-                --     else
-                --        round (miniY / 3)
-                --    )
+        HexPointyTop ->
+            let
+                gridHeightInPx : Float
+                gridHeightInPx =
+                    (diameter / 2) * sqrt 3
             in
                 PixelCoords
-                    ()
+                    ((diameter * toFloat gX) + (toFloat (gY % 2) * diameter / 2))
+                    (gridHeightInPx * toFloat gY)
 
         HexFlatTop ->
             PixelCoords 0 0
