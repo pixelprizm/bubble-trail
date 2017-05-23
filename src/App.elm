@@ -1,7 +1,8 @@
 module App exposing (..)
 
--- Third-party
+-- Others'
 
+import Array
 import Char
 import Debug
 import Html as H
@@ -18,45 +19,84 @@ import Window
 
 import CreativeCommonsLicense
 import Grid
+import SizeConfig
 
 
-gridConfig : Grid.GridConfig
-gridConfig =
-    { diameter = 60
-    , shape = Grid.HexPointyTop
+type alias Config =
+    { diameter : Float
+    , shape : Grid.Shape
+    , sizeConfig : SizeConfig.SizeConfig
+    , colorPeriod : Int
+    , spotCount : Int
+    , naturalColors : Bool
     }
 
 
-spotRadius : Float
-spotRadius =
-    --0.9 * (gridConfig.diameter / 2)
-    (gridConfig.diameter / 2)
+makeGridConfig : Config -> Grid.GridConfig
+makeGridConfig c =
+    Grid.GridConfig
+        c.diameter
+        c.shape
 
 
-spotCount : Int
-spotCount =
-    --* 6
-    --* 3
-    --colorPeriod
-    --sizePeriod
-    sizePeriod * colorPeriod
+squareDefault : Float -> Int -> Config
+squareDefault diameter sizePeriod =
+    let
+        colorPeriod =
+            sizePeriod - 1
+    in
+        { diameter = diameter
+        , shape = Grid.Square
+        , colorPeriod = colorPeriod
+        , sizeConfig =
+            SizeConfig.fromSegments
+                [ { length = sizePeriod
+                  , curve =
+                        SizeConfig.Linear
+                            { startRadius = (diameter * 0.8)
+                            , endRadius = 0
+                            }
+                  }
+                ]
+        , spotCount = colorPeriod * sizePeriod
+        , naturalColors = False
+        }
 
 
-colorPeriod : Int
-colorPeriod =
-    --sizePeriod * 2
-    sizePeriod - 1
+hexDefault : Float -> Int -> Config
+hexDefault diameter sizePeriod =
+    let
+        sq =
+            squareDefault diameter sizePeriod
+    in
+        { sq
+            | shape = Grid.HexPointyTop
+            , sizeConfig =
+                SizeConfig.fromSegments
+                    [ { length = sizePeriod
+                      , curve =
+                            SizeConfig.Linear
+                                { startRadius = (diameter / 2 * 1.4)
+                                , endRadius = 0
+                                }
+                      }
+                    ]
+        }
 
 
-sizePeriod : Int
-sizePeriod =
-    --120
-    12
+chosenConfig : Config
+chosenConfig =
+    --hexDefault 24 12
+    squareDefault 20 12
 
 
-naturalColors : Bool
-naturalColors =
-    False
+
+--spotRadius: 0.9 * (chosenConfig.diameter / 2)
+--colorPeriod: sizePeriod * 2
+--sizePeriod: 120
+--spotCount: colorPeriod
+--spotCount: sizePeriod
+--spotCount: * 6; * 3
 
 
 viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
@@ -107,7 +147,7 @@ update msg model =
             let
                 mouseGridCoords : Grid.GridCoords
                 mouseGridCoords =
-                    Grid.pixelToGrid gridConfig
+                    Grid.pixelToGrid (chosenConfig |> makeGridConfig)
                         (viewportToCenteredCoordinates model.windowSize mousePosition)
             in
                 case List.head model.spots of
@@ -139,7 +179,7 @@ update msg model =
 
 limitSpots : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 limitSpots ( model, c ) =
-    ( { model | spots = model.spots |> List.take spotCount }, c )
+    ( { model | spots = model.spots |> List.take chosenConfig.spotCount }, c )
 
 
 subscriptions : Model -> Sub Msg
@@ -173,136 +213,121 @@ view model =
                 , SA.width (model.windowSize.width |> toString)
                 , SA.height (model.windowSize.height |> toString)
                 ]
-                ((model.spots
-                    |> List.indexedMap viewSpot
+                ((List.indexedMap
+                    (viewSpot (SizeConfig.getRadiuses chosenConfig.sizeConfig |> Array.fromList))
+                    (model.spots)
                     -- Reverse so that new spots show up over old spots:
                     |> List.reverse
                  )
-                    ++ ((List.range -100 100)
-                            |> List.map
-                                (\i ->
-                                    S.g []
-                                        -- Vertical line
-                                        [ S.line
-                                            [ SA.x1 (toString (toFloat i * gridConfig.diameter / 2))
-                                            , SA.y1 "-4000"
-                                            , SA.x2 (toString (toFloat i * gridConfig.diameter / 2))
-                                            , SA.y2 "4000"
-                                            , SA.stroke "gray"
-                                            ]
-                                            []
-
-                                        -- Horizontal line
-                                        , S.line
-                                            [ SA.x1 "-4000"
-                                            , SA.y1 (toString (toFloat i * gridConfig.diameter / 2 / sqrt 3))
-                                            , SA.x2 "4000"
-                                            , SA.y2 (toString (toFloat i * gridConfig.diameter / 2 / sqrt 3))
-                                            , SA.stroke "gray"
-                                            ]
-                                            []
-                                        ]
-                                )
-                       )
+                 --++ ((List.range -100 100)
+                 --        |> List.map
+                 --            (\i ->
+                 --                S.g []
+                 --                    -- Vertical line
+                 --                    [ S.line
+                 --                        [ SA.x1 (toString (toFloat i * chosenConfig.diameter / 2))
+                 --                        , SA.y1 "-4000"
+                 --                        , SA.x2 (toString (toFloat i * chosenConfig.diameter / 2))
+                 --                        , SA.y2 "4000"
+                 --                        , SA.stroke "gray"
+                 --                        ]
+                 --                        []
+                 --                    -- Horizontal line
+                 --                    , S.line
+                 --                        [ SA.x1 "-4000"
+                 --                        , SA.y1 (toString (toFloat i * chosenConfig.diameter / 2 / sqrt 3))
+                 --                        , SA.x2 "4000"
+                 --                        , SA.y2 (toString (toFloat i * chosenConfig.diameter / 2 / sqrt 3))
+                 --                        , SA.stroke "gray"
+                 --                        ]
+                 --                        []
+                 --                    ]
+                 --            )
+                 --   )
                 )
             ]
         ]
 
 
-viewSpot : Int -> Spot -> S.Svg Msg
-viewSpot index spot =
+viewSpot : Array.Array Float -> Int -> Spot -> S.Svg Msg
+viewSpot radiuses index spot =
     S.g []
         (let
-            i =
-                (index % sizePeriod)
-
-            i1 =
-                i + 1
-
-            i1WithGaps =
-                (index % (sizePeriod * 2))
-
-            useInner =
-                False
-
-            outerRadius =
-                --case i of
-                --    0 ->
-                --        spotRadius
-                --    _ ->
-                --        spotRadius / 2
-                --spotRadius * toFloat index * 0.1
-                spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod
-
-            --spotRadius
-            --spotRadius * toFloat (sizePeriod - i1WithGaps) / toFloat sizePeriod
-            --spotRadius / toFloat i1
-            --spotRadius
-            innerRadius =
-                --outerRadius * 0.8
-                --spotRadius / toFloat i1
-                0.8 * spotRadius * toFloat (sizePeriod - i) / toFloat sizePeriod
-
+            --useInner =
+            --    False
+            --innerRadius =
+            --    --outerRadius * 0.8
+            --    --chosenConfig.spotRadius / toFloat i1
+            --    0.8 * chosenConfig.spotRadius * toFloat (chosenConfig.sizePeriod - i) / toFloat chosenConfig.sizePeriod
             { x, y } =
-                Grid.gridToCenterPixel gridConfig spot.gridCoords
+                Grid.gridToCenterPixel (chosenConfig |> makeGridConfig) spot.gridCoords
 
             colorRatio =
-                toFloat index / toFloat colorPeriod
+                toFloat index / toFloat chosenConfig.colorPeriod
 
             hue =
                 colorRatio
-                    * (if naturalColors then
+                    * (if chosenConfig.naturalColors then
                         240
                        else
                         360
                       )
 
+            sizePeriod : Int
+            sizePeriod =
+                Array.length radiuses
+
+            radius : Float
+            radius =
+                case radiuses |> Array.get (index % sizePeriod) of
+                    Nothing ->
+                        0
+
+                    Just r ->
+                        r
+
             outerHsl =
-                { h = hue
-
                 --{ h = 0
-                , s = 100
-
-                --, s = 0
-                --, l = 70
-                , l = 50
-
-                --, l = 0
-                }
-
-            innerHsl =
                 { h = hue
 
-                --{ h = hue
                 --, s = 0
                 , s = 100
 
-                --, l = 0
                 --, l = 70
+                --, l = 0
                 , l = 50
                 }
 
+            --innerHsl =
+            --    { h = hue
+            --    --{ h = hue
+            --    --, s = 0
+            --    , s = 100
+            --    --, l = 0
+            --    --, l = 70
+            --    , l = 50
+            --    }
             hslToString { h, s, l } =
                 "hsl(" ++ toString h ++ "," ++ toString s ++ "%," ++ toString l ++ "%)"
          in
             ([ S.circle
                 [ SA.cx (x |> toString)
                 , SA.cy (y |> toString)
-                , SA.r (outerRadius |> toString)
+                , SA.r (radius |> toString)
                 , SA.fill (outerHsl |> hslToString)
                 ]
                 []
              ]
-                ++ if useInner then
-                    [ S.circle
-                        [ SA.cx (x |> toString)
-                        , SA.cy (y |> toString)
-                        , SA.r (innerRadius |> toString)
-                        , SA.fill (innerHsl |> hslToString)
-                        ]
-                        []
-                    ]
-                   else
-                    []
+             --++ if useInner then
+             --    [ S.circle
+             --        [ SA.cx (x |> toString)
+             --        , SA.cy (y |> toString)
+             --        , SA.r (innerRadius |> toString)
+             --        , SA.fill (innerHsl |> hslToString)
+             --        ]
+             --        []
+             --    ]
+             --   else
+             --    []
             )
         )

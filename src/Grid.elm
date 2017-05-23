@@ -3,7 +3,7 @@ module Grid exposing (..)
 import Debug
 
 
-type GridShape
+type Shape
     = Square
     | HexPointyTop
     | HexFlatTop
@@ -11,7 +11,7 @@ type GridShape
 
 type alias GridConfig =
     { diameter : Float
-    , shape : GridShape
+    , shape : Shape
     }
 
 
@@ -32,8 +32,8 @@ pixelToGrid { diameter, shape } { x, y } =
     case shape of
         Square ->
             GridCoords
-                (floor (x / diameter))
-                (floor (y / diameter))
+                (round (x / diameter))
+                (round (y / diameter))
 
         HexPointyTop ->
             let
