@@ -25,11 +25,11 @@ import SizeConfig
 
 chosenConfig : Config
 chosenConfig =
-    --Config.growShrinkSquare
-    --Config.justGrowSquare
     --Config.growShrinkHex Grid.PointyTop
-    --Config.rainbowPulseSquare
+    --Config.growShrinkSquare
     --Config.justGrowHex Grid.PointyTop
+    --Config.justGrowSquare
+    --Config.rainbowPulseSquare
     Config.rainbowPulseHex Grid.PointyTop
 
 

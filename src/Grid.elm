@@ -57,7 +57,7 @@ gridToCenterPixel { diameter, shape } { gX, gY } =
         gridHeightInPx =
             (diameter / 2) * sqrt 3
 
-        pointyTopPixelCoords =
+        centerPixel_HexPointyTop =
             PixelCoords
                 ((diameter * toFloat gX) + (toFloat (gY % 2) * diameter / 2))
                 (gridHeightInPx * toFloat gY)
@@ -69,10 +69,10 @@ gridToCenterPixel { diameter, shape } { gX, gY } =
                     (diameter * toFloat gY)
 
             Hex PointyTop ->
-                pointyTopPixelCoords
+                centerPixel_HexPointyTop
 
             Hex FlatTop ->
-                PixelCoords pointyTopPixelCoords.y pointyTopPixelCoords.x
+                PixelCoords centerPixel_HexPointyTop.y centerPixel_HexPointyTop.x
 
 
 pixelToGrid_HexPointyTop : Float -> Float -> Float -> GridCoords
