@@ -9,6 +9,7 @@ view attributes =
     H.a
         ([ H.rel "license"
          , H.href "http://creativecommons.org/licenses/by-nc-sa/4.0/"
+         , H.target "_blank"
          , H.style [ ( "line-height", "0" ) ]
          ]
             ++ attributes

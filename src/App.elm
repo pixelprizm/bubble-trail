@@ -25,12 +25,12 @@ import SizeConfig
 
 chosenConfig : Config
 chosenConfig =
-    --Config.rainbowPulseSquare
     --Config.rainbowPulseHex
     --Config.growShrinkSquare
     --Config.growShrinkHex
+    --Config.justGrowSquare
     --Config.justGrowHex
-    Config.justGrowSquare
+    Config.rainbowPulseSquare
 
 
 viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
