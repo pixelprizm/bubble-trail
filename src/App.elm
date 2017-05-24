@@ -19,84 +19,14 @@ import Window
 
 import CreativeCommonsLicense
 import Grid
+import Config exposing (Config)
 import SizeConfig
-
-
-type alias Config =
-    { diameter : Float
-    , shape : Grid.Shape
-    , sizeConfig : SizeConfig.SizeConfig
-    , colorPeriod : Int
-    , spotCount : Int
-    , naturalColors : Bool
-    }
-
-
-makeGridConfig : Config -> Grid.GridConfig
-makeGridConfig c =
-    Grid.GridConfig
-        c.diameter
-        c.shape
-
-
-squareDefault : Float -> Int -> Config
-squareDefault diameter sizePeriod =
-    let
-        colorPeriod =
-            sizePeriod - 1
-    in
-        { diameter = diameter
-        , shape = Grid.Square
-        , colorPeriod = colorPeriod
-        , sizeConfig =
-            SizeConfig.fromSegments
-                [ { length = sizePeriod
-                  , curve =
-                        SizeConfig.Linear
-                            { startRadius = (diameter * 0.8)
-                            , endRadius = 0
-                            }
-                  }
-                ]
-        , spotCount = colorPeriod * sizePeriod
-        , naturalColors = False
-        }
-
-
-hexDefault : Float -> Int -> Config
-hexDefault diameter sizePeriod =
-    let
-        sq =
-            squareDefault diameter sizePeriod
-    in
-        { sq
-            | shape = Grid.HexPointyTop
-            , sizeConfig =
-                SizeConfig.fromSegments
-                    [ { length = sizePeriod
-                      , curve =
-                            SizeConfig.Linear
-                                { startRadius = (diameter / 2 * 1.4)
-                                , endRadius = 0
-                                }
-                      }
-                    ]
-        }
 
 
 chosenConfig : Config
 chosenConfig =
-    --hexDefault 24 12
-    squareDefault 20 12
-
-
-
---spotRadius: 0.9 * (chosenConfig.diameter / 2)
---colorPeriod: sizePeriod * 2
---sizePeriod: 120
---spotCount: colorPeriod
---spotCount: sizePeriod
---spotCount: * 6; * 3
+    --Config.rainbowPulseSquare
+    Config.rainbowPulseHex
 
 
 viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
@@ -147,7 +77,7 @@ update msg model =
             let
                 mouseGridCoords : Grid.GridCoords
                 mouseGridCoords =
-                    Grid.pixelToGrid (chosenConfig |> makeGridConfig)
+                    Grid.pixelToGrid (chosenConfig |> Config.getGridConfig)
                         (viewportToCenteredCoordinates model.windowSize mousePosition)
             in
                 case List.head model.spots of
@@ -260,7 +190,7 @@ viewSpot radiuses index spot =
             --    --chosenConfig.spotRadius / toFloat i1
             --    0.8 * chosenConfig.spotRadius * toFloat (chosenConfig.sizePeriod - i) / toFloat chosenConfig.sizePeriod
             { x, y } =
-                Grid.gridToCenterPixel (chosenConfig |> makeGridConfig) spot.gridCoords
+                Grid.gridToCenterPixel (chosenConfig |> Config.getGridConfig) spot.gridCoords
 
             colorRatio =
                 toFloat index / toFloat chosenConfig.colorPeriod

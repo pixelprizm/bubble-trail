@@ -57,8 +57,7 @@ pixelToGrid { diameter, shape } { x, y } =
 
                 miniRow : Int
                 miniRow =
-                    Debug.log "adjustedMiniRow" <|
-                        floor miniY
+                    floor miniY
 
                 miniRowColToGrid : Int -> Int -> GridCoords
                 miniRowColToGrid mCol mRow =
@@ -80,10 +79,9 @@ pixelToGrid { diameter, shape } { x, y } =
                         gridX =
                             toFloat (mC + (gridY + 1) % 2) / 2 |> floor
                     in
-                        Debug.log "coords" <|
-                            GridCoords
-                                gridX
-                                gridY
+                        GridCoords
+                            gridX
+                            gridY
             in
                 if miniRowMod6 == 1 || miniRowMod6 == 4 then
                     -- This is in a hard row (the mini-row with the zig zags).
