@@ -8,6 +8,8 @@ module SizeConfig
         , getRadiuses
         )
 
+import Array
+
 
 type SizeConfig
     = SizeConfig (List SizeSegment)
@@ -25,7 +27,12 @@ type alias SizeSegment =
 
 
 type SizeSegmentCurve
-    = Linear { startRadius : Float, endRadius : Float }
+    = Linear
+        { startRadius : Float
+        , endRadius : Float
+        , startInclusive : Bool
+        , endInclusive : Bool
+        }
     | Inverse { initialRadius : Float }
     | Constant Float
 
@@ -37,30 +44,54 @@ sizePeriod (SizeConfig segments) =
         |> List.sum
 
 
-getRadiuses : SizeConfig -> List Float
+getRadiuses : SizeConfig -> Array.Array Float
 getRadiuses (SizeConfig segments) =
-    segments
-        |> List.concatMap
-            (\segment ->
-                List.range 0 (segment.length - 1)
-                    |> List.map
-                        (\indexWithinSegment ->
-                            case segment.curve of
-                                Linear { startRadius, endRadius } ->
-                                    let
-                                        interpolationRatio : Float
-                                        interpolationRatio =
-                                            toFloat (segment.length - indexWithinSegment) / toFloat segment.length
-                                    in
-                                        startRadius * interpolationRatio + endRadius * interpolationRatio
+    let
+        getArrayForSegment : SizeSegment -> Array.Array Float
+        getArrayForSegment segment =
+            Array.initialize segment.length
+                (\indexWithinSegment ->
+                    case segment.curve of
+                        Linear { startRadius, endRadius, startInclusive, endInclusive } ->
+                            let
+                                lengthForInterpolation : Int
+                                lengthForInterpolation =
+                                    case ( startInclusive, endInclusive ) of
+                                        ( False, False ) ->
+                                            segment.length + 1
 
-                                Inverse { initialRadius } ->
-                                    initialRadius / toFloat (indexWithinSegment + 1)
+                                        ( False, True ) ->
+                                            segment.length
 
-                                Constant radius ->
-                                    radius
-                        )
-            )
+                                        ( True, False ) ->
+                                            segment.length
+
+                                        ( True, True ) ->
+                                            segment.length - 1
+
+                                indexForInterpolation : Int
+                                indexForInterpolation =
+                                    if startInclusive then
+                                        indexWithinSegment
+                                    else
+                                        indexWithinSegment + 1
+
+                                interpolationRatio : Float
+                                interpolationRatio =
+                                    toFloat indexForInterpolation / toFloat lengthForInterpolation
+                            in
+                                startRadius * (1 - interpolationRatio) + endRadius * interpolationRatio
+
+                        Inverse { initialRadius } ->
+                            initialRadius / toFloat (indexWithinSegment + 1)
+
+                        Constant radius ->
+                            radius
+                )
+    in
+        segments
+            |> List.map getArrayForSegment
+            |> List.foldr Array.append Array.empty
 
 
 

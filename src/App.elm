@@ -25,8 +25,10 @@ import SizeConfig
 
 chosenConfig : Config
 chosenConfig =
+    --Config.rainbowPulseHex
     --Config.rainbowPulseSquare
-    Config.rainbowPulseHex
+    --Config.growShrinkSquare
+    Config.growShrinkHex
 
 
 viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
@@ -144,7 +146,7 @@ view model =
                 , SA.height (model.windowSize.height |> toString)
                 ]
                 ((List.indexedMap
-                    (viewSpot (SizeConfig.getRadiuses chosenConfig.sizeConfig |> Array.fromList))
+                    (viewSpot <| SizeConfig.getRadiuses chosenConfig.sizeConfig)
                     (model.spots)
                     -- Reverse so that new spots show up over old spots:
                     |> List.reverse

@@ -22,7 +22,7 @@ getGridConfig c =
 
 
 
---spotRadius: 0.9 * (chosenConfig.diameter / 2)
+--spotRadius: 0.9 * (diameter / 2)
 --colorPeriod: sizePeriod * 2
 --sizePeriod: 120
 --spotCount: colorPeriod
@@ -40,8 +40,18 @@ rainbowPulseHex =
     rainbowPulse Grid.HexPointyTop 24 1.4
 
 
+growShrinkSquare : Config
+growShrinkSquare =
+    growShrink Grid.Square 20 1.6
+
+
+growShrinkHex : Config
+growShrinkHex =
+    growShrink Grid.HexPointyTop 24 1.4
+
+
 rainbowPulse : Grid.Shape -> Float -> Float -> Config
-rainbowPulse shape diameter startSizeFactor =
+rainbowPulse shape diameter bigRadiusFactor =
     let
         sizePeriod =
             12
@@ -57,11 +67,70 @@ rainbowPulse shape diameter startSizeFactor =
                 [ { length = sizePeriod
                   , curve =
                         SizeConfig.Linear
-                            { startRadius = diameter / 2 * startSizeFactor
+                            { startRadius = (diameter / 2) * bigRadiusFactor
                             , endRadius = 0
+                            , startInclusive = True
+                            , endInclusive = True
                             }
                   }
                 ]
         , spotCount = colorPeriod * sizePeriod
+        , naturalColors = False
+        }
+
+
+growShrink : Grid.Shape -> Float -> Float -> Config
+growShrink shape diameter bigRadiusFactor =
+    let
+        growLength : Int
+        growLength =
+            10
+
+        shrinkLength : Int
+        shrinkLength =
+            growLength
+
+        bigRadius : Float
+        bigRadius =
+            (diameter / 2) * bigRadiusFactor
+
+        smallRadius : Float
+        smallRadius =
+            bigRadius / toFloat growLength / 2
+
+        sizeConfig =
+            SizeConfig.fromSegments
+                [ { length = growLength
+                  , curve =
+                        SizeConfig.Linear
+                            { startRadius = smallRadius
+                            , endRadius = bigRadius
+                            , startInclusive = True
+                            , endInclusive = False
+                            }
+                  }
+                , { length = shrinkLength
+                  , curve =
+                        SizeConfig.Linear
+                            { startRadius = bigRadius
+                            , endRadius = smallRadius
+                            , startInclusive = True
+                            , endInclusive = False
+                            }
+                  }
+                ]
+
+        sizePeriod =
+            SizeConfig.sizePeriod sizeConfig
+
+        colorPeriod : Int
+        colorPeriod =
+            sizePeriod // 2 - 1
+    in
+        { diameter = diameter
+        , shape = shape
+        , colorPeriod = colorPeriod
+        , sizeConfig = sizeConfig
+        , spotCount = sizePeriod * colorPeriod
         , naturalColors = False
         }
