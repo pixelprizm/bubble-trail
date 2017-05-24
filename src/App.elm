@@ -25,10 +25,12 @@ import SizeConfig
 
 chosenConfig : Config
 chosenConfig =
-    --Config.rainbowPulseHex
     --Config.rainbowPulseSquare
+    --Config.rainbowPulseHex
     --Config.growShrinkSquare
-    Config.growShrinkHex
+    --Config.growShrinkHex
+    --Config.justGrowHex
+    Config.justGrowSquare
 
 
 viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
@@ -148,8 +150,12 @@ view model =
                 ((List.indexedMap
                     (viewSpot <| SizeConfig.getRadiuses chosenConfig.sizeConfig)
                     (model.spots)
-                    -- Reverse so that new spots show up over old spots:
-                    |> List.reverse
+                    |> (if chosenConfig.newInBack then
+                            identity
+                        else
+                            -- Reverse so that new spots show up over old spots:
+                            List.reverse
+                       )
                  )
                  --++ ((List.range -100 100)
                  --        |> List.map
@@ -194,8 +200,14 @@ viewSpot radiuses index spot =
             { x, y } =
                 Grid.gridToCenterPixel (chosenConfig |> Config.getGridConfig) spot.gridCoords
 
+            indexForColorRatio =
+                if chosenConfig.colorsMove then
+                    index
+                else
+                    spot.index
+
             colorRatio =
-                toFloat index / toFloat chosenConfig.colorPeriod
+                toFloat indexForColorRatio / toFloat chosenConfig.colorPeriod
 
             hue =
                 colorRatio

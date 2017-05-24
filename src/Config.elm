@@ -10,6 +10,8 @@ type alias Config =
     , sizeConfig : SizeConfig.SizeConfig
     , colorPeriod : Int
     , spotCount : Int
+    , colorsMove : Bool
+    , newInBack : Bool
     , naturalColors : Bool
     }
 
@@ -50,6 +52,16 @@ growShrinkHex =
     growShrink Grid.HexPointyTop 24 1.4
 
 
+justGrowSquare : Config
+justGrowSquare =
+    justGrow { shape = Grid.Square, diameter = 10, endRadius = 100, spotCount = 240 }
+
+
+justGrowHex : Config
+justGrowHex =
+    justGrow { shape = Grid.Square, diameter = 12, endRadius = 100, spotCount = 240 }
+
+
 rainbowPulse : Grid.Shape -> Float -> Float -> Config
 rainbowPulse shape diameter bigRadiusFactor =
     let
@@ -75,6 +87,8 @@ rainbowPulse shape diameter bigRadiusFactor =
                   }
                 ]
         , spotCount = colorPeriod * sizePeriod
+        , colorsMove = True
+        , newInBack = False
         , naturalColors = False
         }
 
@@ -132,5 +146,34 @@ growShrink shape diameter bigRadiusFactor =
         , colorPeriod = colorPeriod
         , sizeConfig = sizeConfig
         , spotCount = sizePeriod * colorPeriod
+        , colorsMove = True
+        , newInBack = False
+        , naturalColors = False
+        }
+
+
+justGrow : { shape : Grid.Shape, diameter : Float, endRadius : Float, spotCount : Int } -> Config
+justGrow { shape, diameter, endRadius, spotCount } =
+    let
+        sizeConfig =
+            SizeConfig.fromSegments
+                [ { length = spotCount
+                  , curve =
+                        SizeConfig.Linear
+                            { startRadius = 0
+                            , endRadius = endRadius
+                            , startInclusive = True
+                            , endInclusive = False
+                            }
+                  }
+                ]
+    in
+        { diameter = diameter
+        , shape = shape
+        , colorPeriod = spotCount // 3
+        , sizeConfig = sizeConfig
+        , spotCount = spotCount
+        , colorsMove = False
+        , newInBack = False
         , naturalColors = False
         }
