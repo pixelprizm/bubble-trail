@@ -37,9 +37,9 @@ rainbowPulseSquare =
     rainbowPulse Grid.Square 20 1.6
 
 
-rainbowPulseHex : Config
-rainbowPulseHex =
-    rainbowPulse Grid.HexPointyTop 24 1.4
+rainbowPulseHex : Grid.HexShape -> Config
+rainbowPulseHex hexShape =
+    rainbowPulse (Grid.Hex hexShape) 24 1.4
 
 
 growShrinkSquare : Config
@@ -47,9 +47,9 @@ growShrinkSquare =
     growShrink Grid.Square 20 1.6
 
 
-growShrinkHex : Config
-growShrinkHex =
-    growShrink Grid.HexPointyTop 24 1.4
+growShrinkHex : Grid.HexShape -> Config
+growShrinkHex hexShape =
+    growShrink (Grid.Hex hexShape) 24 1.4
 
 
 justGrowSquare : Config
@@ -57,9 +57,9 @@ justGrowSquare =
     justGrow { shape = Grid.Square, diameter = 10, endRadius = 100, spotCount = 240 }
 
 
-justGrowHex : Config
-justGrowHex =
-    justGrow { shape = Grid.Square, diameter = 12, endRadius = 100, spotCount = 240 }
+justGrowHex : Grid.HexShape -> Config
+justGrowHex hexShape =
+    justGrow { shape = Grid.Hex hexShape, diameter = 12, endRadius = 100, spotCount = 240 }
 
 
 rainbowPulse : Grid.Shape -> Float -> Float -> Config
