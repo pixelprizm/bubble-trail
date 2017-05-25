@@ -7,7 +7,7 @@ import Char
 import Debug
 import Html as H
 import Html.Attributes as H
-import Keyboard
+import Keyboard.Extra as KE
 import Mouse
 import Svg as S
 import Svg.Attributes as SA
@@ -25,12 +25,12 @@ import SizeConfig
 
 chosenConfig : Config
 chosenConfig =
-    --Config.growShrinkHex Grid.PointyTop
-    --Config.growShrinkSquare
     --Config.justGrowHex Grid.PointyTop
     --Config.justGrowSquare
-    --Config.rainbowPulseSquare
-    Config.rainbowPulseHex Grid.PointyTop
+    --Config.rainbowPulseHex Grid.PointyTop
+    --Config.growShrinkSquare
+    --Config.growShrinkHex Grid.FlatTop
+    Config.rainbowPulseSquare
 
 
 viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
@@ -56,12 +56,13 @@ type alias Spot =
 type alias Model =
     { spots : List Spot
     , windowSize : Window.Size
+    , pressedKeys : List KE.Key
     }
 
 
 type Msg
     = MouseMove Mouse.Position
-    | KeyPress Keyboard.KeyCode
+    | KeyMsg KE.Msg
     | WindowResize Window.Size
 
 
@@ -69,6 +70,7 @@ init : ( Model, Cmd Msg )
 init =
     { spots = []
     , windowSize = Window.Size 0 0
+    , pressedKeys = []
     }
         ! [ Task.perform WindowResize Window.size
           ]
@@ -78,32 +80,55 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
         MouseMove mousePosition ->
+            if model.pressedKeys |> List.member KE.Shift then
+                Debug.log "hi" (model ! [])
+            else if model.pressedKeys |> List.member KE.Space then
+                model ! []
+            else
+                let
+                    mouseGridCoords : Grid.GridCoords
+                    mouseGridCoords =
+                        Grid.pixelToGrid (chosenConfig |> Config.getGridConfig)
+                            (viewportToCenteredCoordinates model.windowSize mousePosition)
+                in
+                    case List.head model.spots of
+                        Nothing ->
+                            { model | spots = [ Spot mouseGridCoords 0 ] } ! []
+
+                        Just spot ->
+                            if spot.gridCoords == mouseGridCoords then
+                                model ! []
+                            else
+                                { model
+                                    | spots = (Spot mouseGridCoords (spot.index + 1)) :: model.spots
+                                }
+                                    ! []
+
+        KeyMsg keyMsg ->
             let
-                mouseGridCoords : Grid.GridCoords
-                mouseGridCoords =
-                    Grid.pixelToGrid (chosenConfig |> Config.getGridConfig)
-                        (viewportToCenteredCoordinates model.windowSize mousePosition)
+                ( pressedKeys, possibleKeyChange ) =
+                    KE.updateWithKeyChange keyMsg model.pressedKeys
+
+                modelWithPressedKeysUpdated =
+                    { model | pressedKeys = pressedKeys }
             in
-                case List.head model.spots of
+                case possibleKeyChange of
                     Nothing ->
-                        { model | spots = [ Spot mouseGridCoords 0 ] } ! []
+                        modelWithPressedKeysUpdated ! []
 
-                    Just spot ->
-                        if spot.gridCoords == mouseGridCoords then
-                            model ! []
-                        else
-                            { model
-                                | spots = (Spot mouseGridCoords (spot.index + 1)) :: model.spots
-                            }
-                                ! []
+                    Just (KE.KeyDown key) ->
+                        let
+                            test =
+                                Debug.log "key down" key
+                        in
+                            modelWithPressedKeysUpdated ! []
 
-        KeyPress keyCode ->
-            case Debug.log "code" (Char.fromCode keyCode) of
-                'e' ->
-                    model ! []
-
-                _ ->
-                    model ! []
+                    Just (KE.KeyUp key) ->
+                        let
+                            test =
+                                Debug.log "key up" key
+                        in
+                            modelWithPressedKeysUpdated ! []
 
         WindowResize size ->
             { model | windowSize = size } ! []
@@ -119,9 +144,9 @@ limitSpots ( model, c ) =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Mouse.moves MouseMove
-        , Keyboard.presses KeyPress
-        , Window.resizes WindowResize
+        [ Window.resizes WindowResize
+        , Mouse.moves MouseMove
+        , Sub.map KeyMsg KE.subscriptions
         ]
 
 
