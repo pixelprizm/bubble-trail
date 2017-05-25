@@ -76,34 +76,34 @@ update msg model =
                     mouseCoords =
                         mousePosition |> Grid.mouseToRealCoordinates model.windowSize
 
-                    mouseGridCoords : Grid.GridCoords
-                    mouseGridCoords =
-                        Grid.pixelToGrid (chosenConfig |> Config.getGridConfig) mouseCoords
+                    nearestGridToMouse : Grid.GridCoords
+                    nearestGridToMouse =
+                        mouseCoords |> Grid.getGridCoords (chosenConfig |> Config.getGridConfig)
 
                     gridCoordsToUse =
                         case model.lockLineStart of
                             Nothing ->
-                                mouseGridCoords
+                                nearestGridToMouse
 
                             Just lockLineStart ->
                                 let
-                                    lockLineStartPixels =
-                                        Grid.gridToCenterPixel (chosenConfig |> Config.getGridConfig)
+                                    lockLineStart_real =
+                                        lockLineStart |> Grid.getCenter (chosenConfig |> Config.getGridConfig)
                                 in
                                     Grid.GridCoords
-                                        lockLineStart.gX
-                                        lockLineStart.gY
+                                        lockLineStart.grid_x
+                                        lockLineStart.grid_y
                 in
                     case List.head model.spots of
                         Nothing ->
-                            { model | spots = [ Spot mouseGridCoords 0 ] } ! []
+                            { model | spots = [ Spot nearestGridToMouse 0 ] } ! []
 
                         Just spot ->
-                            if spot.gridCoords == mouseGridCoords then
+                            if spot.gridCoords == nearestGridToMouse then
                                 model ! []
                             else
                                 { model
-                                    | spots = (Spot mouseGridCoords (spot.index + 1)) :: model.spots
+                                    | spots = (Spot nearestGridToMouse (spot.index + 1)) :: model.spots
                                 }
                                     ! []
 
@@ -248,8 +248,8 @@ viewSpot radiuses index spot =
             --    --outerRadius * 0.8
             --    --chosenConfig.spotRadius / toFloat i1
             --    0.8 * chosenConfig.spotRadius * toFloat (chosenConfig.sizePeriod - i) / toFloat chosenConfig.sizePeriod
-            { sX, sY } =
-                Grid.gridToCenterPixel (chosenConfig |> Config.getGridConfig) spot.gridCoords
+            { svg_x, svg_y } =
+                Grid.getCenter (chosenConfig |> Config.getGridConfig) spot.gridCoords
                     |> Grid.realToSvgCoordinates
 
             indexForColorRatio =
@@ -307,8 +307,8 @@ viewSpot radiuses index spot =
                 "hsl(" ++ toString h ++ "," ++ toString s ++ "%," ++ toString l ++ "%)"
          in
             ([ S.circle
-                [ SA.cx (sX |> toString)
-                , SA.cy (sY |> toString)
+                [ SA.cx (svg_x |> toString)
+                , SA.cy (svg_y |> toString)
                 , SA.r (radius |> toString)
                 , SA.fill (outerHsl |> hslToString)
                 ]
