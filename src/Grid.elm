@@ -1,6 +1,8 @@
 module Grid exposing (..)
 
 import Debug
+import Window
+import Mouse
 
 
 type Shape
@@ -25,13 +27,31 @@ type alias GridCoords =
     }
 
 
-type alias PixelCoords =
+type alias SvgCoords =
+    { sX : Float
+    , sY : Float
+    }
+
+
+type alias RealCoords =
     { x : Float
     , y : Float
     }
 
 
-pixelToGrid : GridConfig -> PixelCoords -> GridCoords
+mouseToRealCoordinates : Window.Size -> Mouse.Position -> RealCoords
+mouseToRealCoordinates { width, height } { x, y } =
+    RealCoords
+        (toFloat x - (toFloat width / 2))
+        -(toFloat y - (toFloat height / 2))
+
+
+realToSvgCoordinates : RealCoords -> SvgCoords
+realToSvgCoordinates { x, y } =
+    SvgCoords x -y
+
+
+pixelToGrid : GridConfig -> RealCoords -> GridCoords
 pixelToGrid { diameter, shape } pixel =
     case shape of
         Square ->
@@ -50,7 +70,7 @@ pixelToGrid { diameter, shape } pixel =
                 GridCoords pointyTopGridCoords.gX pointyTopGridCoords.gY
 
 
-gridToCenterPixel : GridConfig -> GridCoords -> PixelCoords
+gridToCenterPixel : GridConfig -> GridCoords -> RealCoords
 gridToCenterPixel { diameter, shape } { gX, gY } =
     let
         gridHeightInPx : Float
@@ -58,13 +78,13 @@ gridToCenterPixel { diameter, shape } { gX, gY } =
             (diameter / 2) * sqrt 3
 
         centerPixel_HexPointyTop =
-            PixelCoords
+            RealCoords
                 ((diameter * toFloat gX) + (toFloat (gY % 2) * diameter / 2))
                 (gridHeightInPx * toFloat gY)
     in
         case shape of
             Square ->
-                PixelCoords
+                RealCoords
                     (diameter * toFloat gX)
                     (diameter * toFloat gY)
 
@@ -72,7 +92,7 @@ gridToCenterPixel { diameter, shape } { gX, gY } =
                 centerPixel_HexPointyTop
 
             Hex FlatTop ->
-                PixelCoords centerPixel_HexPointyTop.y centerPixel_HexPointyTop.x
+                RealCoords centerPixel_HexPointyTop.y centerPixel_HexPointyTop.x
 
 
 pixelToGrid_HexPointyTop : Float -> Float -> Float -> GridCoords

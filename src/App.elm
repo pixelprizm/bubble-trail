@@ -33,20 +33,6 @@ chosenConfig =
     Config.rainbowPulseSquare
 
 
-viewportToCenteredCoordinates : Window.Size -> Mouse.Position -> Grid.PixelCoords
-viewportToCenteredCoordinates { width, height } { x, y } =
-    Grid.PixelCoords
-        (toFloat x - (toFloat width / 2))
-        (toFloat y - (toFloat height / 2))
-
-
-centeredToViewportCoordinates : Window.Size -> Grid.PixelCoords -> Mouse.Position
-centeredToViewportCoordinates { width, height } { x, y } =
-    Mouse.Position
-        (floor x + (width // 2))
-        (floor y + (height // 2))
-
-
 type alias Spot =
     { gridCoords : Grid.GridCoords
     , index : Int
@@ -57,7 +43,19 @@ type alias Model =
     { spots : List Spot
     , windowSize : Window.Size
     , pressedKeys : List KE.Key
+    , lockLineStart : Maybe Grid.GridCoords
     }
+
+
+init : ( Model, Cmd Msg )
+init =
+    { spots = []
+    , windowSize = Window.Size 0 0
+    , pressedKeys = []
+    , lockLineStart = Nothing
+    }
+        ! [ Task.perform WindowResize Window.size
+          ]
 
 
 type Msg
@@ -66,30 +64,35 @@ type Msg
     | WindowResize Window.Size
 
 
-init : ( Model, Cmd Msg )
-init =
-    { spots = []
-    , windowSize = Window.Size 0 0
-    , pressedKeys = []
-    }
-        ! [ Task.perform WindowResize Window.size
-          ]
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
         MouseMove mousePosition ->
-            if model.pressedKeys |> List.member KE.Shift then
-                Debug.log "hi" (model ! [])
-            else if model.pressedKeys |> List.member KE.Space then
+            if model.pressedKeys |> List.member KE.Space then
                 model ! []
             else
                 let
+                    mouseCoords : Grid.RealCoords
+                    mouseCoords =
+                        mousePosition |> Grid.mouseToRealCoordinates model.windowSize
+
                     mouseGridCoords : Grid.GridCoords
                     mouseGridCoords =
-                        Grid.pixelToGrid (chosenConfig |> Config.getGridConfig)
-                            (viewportToCenteredCoordinates model.windowSize mousePosition)
+                        Grid.pixelToGrid (chosenConfig |> Config.getGridConfig) mouseCoords
+
+                    gridCoordsToUse =
+                        case model.lockLineStart of
+                            Nothing ->
+                                mouseGridCoords
+
+                            Just lockLineStart ->
+                                let
+                                    lockLineStartPixels =
+                                        Grid.gridToCenterPixel (chosenConfig |> Config.getGridConfig)
+                                in
+                                    Grid.GridCoords
+                                        lockLineStart.gX
+                                        lockLineStart.gY
                 in
                     case List.head model.spots of
                         Nothing ->
@@ -116,12 +119,35 @@ update msg model =
                     Nothing ->
                         modelWithPressedKeysUpdated ! []
 
+                    Just (KE.KeyDown KE.Shift) ->
+                        let
+                            test =
+                                Debug.log "shift down" ""
+
+                            lockLineStart : Grid.GridCoords
+                            lockLineStart =
+                                case List.head model.spots of
+                                    Nothing ->
+                                        Grid.GridCoords 0 0
+
+                                    Just spot ->
+                                        spot.gridCoords
+                        in
+                            { modelWithPressedKeysUpdated | lockLineStart = Just lockLineStart } ! []
+
                     Just (KE.KeyDown key) ->
                         let
                             test =
                                 Debug.log "key down" key
                         in
                             modelWithPressedKeysUpdated ! []
+
+                    Just (KE.KeyUp KE.Shift) ->
+                        let
+                            test =
+                                Debug.log "shift up" ""
+                        in
+                            { modelWithPressedKeysUpdated | lockLineStart = Nothing } ! []
 
                     Just (KE.KeyUp key) ->
                         let
@@ -222,8 +248,9 @@ viewSpot radiuses index spot =
             --    --outerRadius * 0.8
             --    --chosenConfig.spotRadius / toFloat i1
             --    0.8 * chosenConfig.spotRadius * toFloat (chosenConfig.sizePeriod - i) / toFloat chosenConfig.sizePeriod
-            { x, y } =
+            { sX, sY } =
                 Grid.gridToCenterPixel (chosenConfig |> Config.getGridConfig) spot.gridCoords
+                    |> Grid.realToSvgCoordinates
 
             indexForColorRatio =
                 if chosenConfig.colorsMove then
@@ -280,8 +307,8 @@ viewSpot radiuses index spot =
                 "hsl(" ++ toString h ++ "," ++ toString s ++ "%," ++ toString l ++ "%)"
          in
             ([ S.circle
-                [ SA.cx (x |> toString)
-                , SA.cy (y |> toString)
+                [ SA.cx (sX |> toString)
+                , SA.cy (sY |> toString)
                 , SA.r (radius |> toString)
                 , SA.fill (outerHsl |> hslToString)
                 ]
