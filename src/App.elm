@@ -27,10 +27,10 @@ chosenConfig : Config
 chosenConfig =
     --Config.justGrowHex Grid.PointyTop
     --Config.justGrowSquare
-    --Config.rainbowPulseHex Grid.PointyTop
     --Config.growShrinkSquare
     --Config.growShrinkHex Grid.FlatTop
-    Config.rainbowPulseSquare
+    --Config.rainbowPulseSquare
+    Config.rainbowPulseHex Grid.FlatTop
 
 
 type alias Spot =
@@ -72,38 +72,86 @@ update msg model =
                 model ! []
             else
                 let
-                    mouseCoords : Grid.RealCoords
-                    mouseCoords =
+                    mouse : Grid.RealCoords
+                    mouse =
                         mousePosition |> Grid.mouseToRealCoordinates model.windowSize
 
                     nearestGridToMouse : Grid.GridCoords
                     nearestGridToMouse =
-                        mouseCoords |> Grid.getGridCoords (chosenConfig |> Config.getGridConfig)
+                        mouse |> Grid.getGridCoords (chosenConfig |> Config.getGridConfig)
 
-                    gridCoordsToUse =
+                    possibleNewSpotCoords =
                         case model.lockLineStart of
                             Nothing ->
                                 nearestGridToMouse
 
                             Just lockLineStart ->
                                 let
-                                    lockLineStart_real =
+                                    lockLineStartCenter =
                                         lockLineStart |> Grid.getCenter (chosenConfig |> Config.getGridConfig)
+
+                                    lineX : Float
+                                    lineX =
+                                        mouse.real_x - lockLineStartCenter.real_x
+
+                                    lineY : Float
+                                    lineY =
+                                        mouse.real_y - lockLineStartCenter.real_y
+
+                                    ( r, theta ) =
+                                        Debug.log "r, theta" <|
+                                            toPolar ( lineX, lineY )
+
+                                    thetaRoundingIncrement =
+                                        case chosenConfig.shape of
+                                            Grid.Square ->
+                                                turns (1 / 4)
+
+                                            Grid.Hex _ ->
+                                                turns (1 / 6)
+
+                                    roundOrFloor =
+                                        if chosenConfig.shape == Grid.Hex Grid.FlatTop then
+                                            floor
+                                        else
+                                            round
+
+                                    offset =
+                                        if chosenConfig.shape == Grid.Hex Grid.FlatTop then
+                                            turns (1 / 12)
+                                        else
+                                            0
+
+                                    snappedTheta : Float
+                                    snappedTheta =
+                                        theta
+                                            / thetaRoundingIncrement
+                                            |> roundOrFloor
+                                            |> toFloat
+                                            |> (*) thetaRoundingIncrement
+                                            |> (+) offset
+
+                                    test =
+                                        Debug.log "snappedTheta" snappedTheta
+
+                                    ( snappedX, snappedY ) =
+                                        fromPolar ( r, snappedTheta )
                                 in
-                                    Grid.GridCoords
-                                        lockLineStart.grid_x
-                                        lockLineStart.grid_y
+                                    Grid.getGridCoords (chosenConfig |> Config.getGridConfig) <|
+                                        Grid.RealCoords
+                                            (lockLineStartCenter.real_x + snappedX)
+                                            (lockLineStartCenter.real_y + snappedY)
                 in
                     case List.head model.spots of
                         Nothing ->
-                            { model | spots = [ Spot nearestGridToMouse 0 ] } ! []
+                            { model | spots = [ Spot possibleNewSpotCoords 0 ] } ! []
 
                         Just spot ->
-                            if spot.gridCoords == nearestGridToMouse then
+                            if spot.gridCoords == possibleNewSpotCoords then
                                 model ! []
                             else
                                 { model
-                                    | spots = (Spot nearestGridToMouse (spot.index + 1)) :: model.spots
+                                    | spots = (Spot possibleNewSpotCoords (spot.index + 1)) :: model.spots
                                 }
                                     ! []
 
@@ -114,10 +162,18 @@ update msg model =
 
                 modelWithPressedKeysUpdated =
                     { model | pressedKeys = pressedKeys }
+
+                modelTakingIntoAccountBackspace =
+                    if pressedKeys |> List.member KE.BackSpace then
+                        { modelWithPressedKeysUpdated
+                            | spots = modelWithPressedKeysUpdated.spots |> List.drop 1
+                        }
+                    else
+                        modelWithPressedKeysUpdated
             in
                 case possibleKeyChange of
                     Nothing ->
-                        modelWithPressedKeysUpdated ! []
+                        modelTakingIntoAccountBackspace ! []
 
                     Just (KE.KeyDown KE.Shift) ->
                         let
@@ -133,38 +189,32 @@ update msg model =
                                     Just spot ->
                                         spot.gridCoords
                         in
-                            { modelWithPressedKeysUpdated | lockLineStart = Just lockLineStart } ! []
+                            { modelTakingIntoAccountBackspace | lockLineStart = Just lockLineStart } ! []
 
                     Just (KE.KeyDown key) ->
                         let
                             test =
                                 Debug.log "key down" key
                         in
-                            modelWithPressedKeysUpdated ! []
+                            modelTakingIntoAccountBackspace ! []
 
                     Just (KE.KeyUp KE.Shift) ->
                         let
                             test =
                                 Debug.log "shift up" ""
                         in
-                            { modelWithPressedKeysUpdated | lockLineStart = Nothing } ! []
+                            { modelTakingIntoAccountBackspace | lockLineStart = Nothing } ! []
 
                     Just (KE.KeyUp key) ->
                         let
                             test =
                                 Debug.log "key up" key
                         in
-                            modelWithPressedKeysUpdated ! []
+                            modelTakingIntoAccountBackspace ! []
 
         WindowResize size ->
             { model | windowSize = size } ! []
     )
-        |> limitSpots
-
-
-limitSpots : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
-limitSpots ( model, c ) =
-    ( { model | spots = model.spots |> List.take chosenConfig.spotCount }, c )
 
 
 subscriptions : Model -> Sub Msg
@@ -200,7 +250,7 @@ view model =
                 ]
                 ((List.indexedMap
                     (viewSpot <| SizeConfig.getRadiuses chosenConfig.sizeConfig)
-                    (model.spots)
+                    (model.spots |> List.take chosenConfig.spotCount)
                     |> (if chosenConfig.newInBack then
                             identity
                         else
