@@ -203,3 +203,84 @@ getCenter { diameter, shape } { grid_x, grid_y } =
 
                     FlatTop ->
                         RealCoords center_pointyTop.real_y center_pointyTop.real_x
+
+
+getSnappedLineCoords : GridConfig -> GridCoords -> RealCoords -> List GridCoords
+getSnappedLineCoords config start unsnappedEnd =
+    let
+        lockLineStartCenter =
+            start
+                |> getCenter config
+
+        unsnappedLineX : Float
+        unsnappedLineX =
+            unsnappedEnd.real_x - lockLineStartCenter.real_x
+
+        unsnappedLineY : Float
+        unsnappedLineY =
+            unsnappedEnd.real_y - lockLineStartCenter.real_y
+
+        ( r, theta ) =
+            Debug.log "r, theta" <|
+                toPolar ( unsnappedLineX, unsnappedLineY )
+
+        thetaRoundingIncrement =
+            case config.shape of
+                Square ->
+                    turns (1 / 4)
+
+                Hex _ ->
+                    turns (1 / 6)
+
+        roundOrFloor =
+            if config.shape == Hex FlatTop then
+                floor
+            else
+                round
+
+        offset =
+            if config.shape == Hex FlatTop then
+                turns (1 / 12)
+            else
+                0
+
+        snappedTheta : Float
+        snappedTheta =
+            theta
+                / thetaRoundingIncrement
+                |> roundOrFloor
+                |> toFloat
+                |> (*) thetaRoundingIncrement
+                |> (+) offset
+
+        test =
+            Debug.log "snappedTheta" snappedTheta
+
+        ( snappedX, snappedY ) =
+            fromPolar ( r, snappedTheta )
+
+        snappedLineLengthRounded : Int
+        snappedLineLengthRounded =
+            round (r / config.diameter)
+    in
+        if snappedLineLengthRounded == 0 then
+            []
+        else
+            List.range 1 snappedLineLengthRounded
+                |> List.map
+                    (\snappedLineCoordIndex ->
+                        let
+                            snappedLineCoordR =
+                                toFloat snappedLineCoordIndex * config.diameter
+
+                            ( snappedLineCoordX, snappedLineCoordY ) =
+                                fromPolar ( snappedLineCoordR, snappedTheta )
+
+                            snappedAbsoluteCoords =
+                                RealCoords
+                                    (lockLineStartCenter.real_x + snappedLineCoordX)
+                                    (lockLineStartCenter.real_y + snappedLineCoordY)
+                        in
+                            getGridCoords config snappedAbsoluteCoords
+                    )
+                |> List.reverse

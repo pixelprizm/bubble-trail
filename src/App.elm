@@ -34,8 +34,8 @@ chosenConfig =
 
 
 type alias Spot =
-    { gridCoords : Grid.GridCoords
-    , index : Int
+    { index : Int
+    , gridCoords : Grid.GridCoords
     }
 
 
@@ -43,8 +43,42 @@ type alias Model =
     { spots : List Spot
     , windowSize : Window.Size
     , pressedKeys : List KE.Key
-    , lockLineStart : Maybe Grid.GridCoords
+    , lockLine :
+        Maybe
+            { start : Grid.GridCoords
+            , end : Maybe Grid.RealCoords
+            }
     }
+
+
+getNewSpotIndex : Model -> Int
+getNewSpotIndex model =
+    case List.head model.spots of
+        Nothing ->
+            0
+
+        Just spot ->
+            spot.index + 1
+
+
+getProvisionalSpots : Model -> List Spot
+getProvisionalSpots model =
+    case model.lockLine of
+        Nothing ->
+            []
+
+        Just { start, end } ->
+            case end of
+                Nothing ->
+                    []
+
+                Just end ->
+                    Grid.getSnappedLineCoords
+                        (chosenConfig |> Config.getGridConfig)
+                        start
+                        end
+                        |> List.indexedMap
+                            (\i coords -> Spot (i + getNewSpotIndex model) coords)
 
 
 init : ( Model, Cmd Msg )
@@ -52,7 +86,7 @@ init =
     { spots = []
     , windowSize = Window.Size 0 0
     , pressedKeys = []
-    , lockLineStart = Nothing
+    , lockLine = Nothing
     }
         ! [ Task.perform WindowResize Window.size
           ]
@@ -79,81 +113,36 @@ update msg model =
                     nearestGridToMouse : Grid.GridCoords
                     nearestGridToMouse =
                         mouse |> Grid.getGridCoords (chosenConfig |> Config.getGridConfig)
-
-                    possibleNewSpotCoords =
-                        case model.lockLineStart of
-                            Nothing ->
-                                nearestGridToMouse
-
-                            Just lockLineStart ->
-                                let
-                                    lockLineStartCenter =
-                                        lockLineStart |> Grid.getCenter (chosenConfig |> Config.getGridConfig)
-
-                                    lineX : Float
-                                    lineX =
-                                        mouse.real_x - lockLineStartCenter.real_x
-
-                                    lineY : Float
-                                    lineY =
-                                        mouse.real_y - lockLineStartCenter.real_y
-
-                                    ( r, theta ) =
-                                        Debug.log "r, theta" <|
-                                            toPolar ( lineX, lineY )
-
-                                    thetaRoundingIncrement =
-                                        case chosenConfig.shape of
-                                            Grid.Square ->
-                                                turns (1 / 4)
-
-                                            Grid.Hex _ ->
-                                                turns (1 / 6)
-
-                                    roundOrFloor =
-                                        if chosenConfig.shape == Grid.Hex Grid.FlatTop then
-                                            floor
-                                        else
-                                            round
-
-                                    offset =
-                                        if chosenConfig.shape == Grid.Hex Grid.FlatTop then
-                                            turns (1 / 12)
-                                        else
-                                            0
-
-                                    snappedTheta : Float
-                                    snappedTheta =
-                                        theta
-                                            / thetaRoundingIncrement
-                                            |> roundOrFloor
-                                            |> toFloat
-                                            |> (*) thetaRoundingIncrement
-                                            |> (+) offset
-
-                                    test =
-                                        Debug.log "snappedTheta" snappedTheta
-
-                                    ( snappedX, snappedY ) =
-                                        fromPolar ( r, snappedTheta )
-                                in
-                                    Grid.getGridCoords (chosenConfig |> Config.getGridConfig) <|
-                                        Grid.RealCoords
-                                            (lockLineStartCenter.real_x + snappedX)
-                                            (lockLineStartCenter.real_y + snappedY)
                 in
-                    case List.head model.spots of
+                    case model.lockLine of
                         Nothing ->
-                            { model | spots = [ Spot possibleNewSpotCoords 0 ] } ! []
+                            let
+                                newSpotIndex : Int
+                                newSpotIndex =
+                                    getNewSpotIndex model
+                            in
+                                case List.head model.spots of
+                                    Nothing ->
+                                        { model | spots = [ Spot newSpotIndex nearestGridToMouse ] } ! []
 
-                        Just spot ->
-                            if spot.gridCoords == possibleNewSpotCoords then
-                                model ! []
-                            else
-                                { model
-                                    | spots = (Spot possibleNewSpotCoords (spot.index + 1)) :: model.spots
-                                }
-                                    ! []
+                                    Just spot ->
+                                        if spot.gridCoords == nearestGridToMouse then
+                                            model ! []
+                                        else
+                                            { model
+                                                | spots = (Spot newSpotIndex nearestGridToMouse) :: model.spots
+                                            }
+                                                ! []
+
+                        Just lockLineDefinition ->
+                            { model
+                                | lockLine =
+                                    Just
+                                        { lockLineDefinition
+                                            | end = Just mouse
+                                        }
+                            }
+                                ! []
 
         KeyMsg keyMsg ->
             let
@@ -189,7 +178,7 @@ update msg model =
                                     Just spot ->
                                         spot.gridCoords
                         in
-                            { modelTakingIntoAccountBackspace | lockLineStart = Just lockLineStart } ! []
+                            { modelTakingIntoAccountBackspace | lockLine = Just { start = lockLineStart, end = Nothing } } ! []
 
                     Just (KE.KeyDown key) ->
                         let
@@ -203,7 +192,11 @@ update msg model =
                             test =
                                 Debug.log "shift up" ""
                         in
-                            { modelTakingIntoAccountBackspace | lockLineStart = Nothing } ! []
+                            { modelTakingIntoAccountBackspace
+                                | lockLine = Nothing
+                                , spots = List.append (getProvisionalSpots model) model.spots
+                            }
+                                ! []
 
                     Just (KE.KeyUp key) ->
                         let
@@ -250,7 +243,9 @@ view model =
                 ]
                 ((List.indexedMap
                     (viewSpot <| SizeConfig.getRadiuses chosenConfig.sizeConfig)
-                    (model.spots |> List.take chosenConfig.spotCount)
+                    (List.append (getProvisionalSpots model) model.spots
+                        |> List.take chosenConfig.spotCount
+                    )
                     |> (if chosenConfig.newInBack then
                             identity
                         else
