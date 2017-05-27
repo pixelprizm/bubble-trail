@@ -1,10 +1,53 @@
-module Config exposing (..)
+module Config
+    exposing
+        ( Config
+        , getGridConfig
+        , getRadiuses
+        , rainbowPulseSquare
+        , rainbowPulseHex
+        , growShrinkSquare
+        , growShrinkHex
+        , justGrowSquare
+        , justGrowHex
+        , setSizeConfig
+        )
+
+-- Others'
+
+import Array
+
+
+-- Mine
 
 import SizeConfig
 import Grid
 
 
 type alias Config =
+    { diameter : Float
+    , shape : Grid.Shape
+    , sizeConfig : PrivateSizeConfig
+    , colorPeriod : Int
+    , spotCount : Int
+    , limitSpots : Bool
+    , colorsMove : Bool
+    , newInBack : Bool
+    , naturalColors : Bool
+    }
+
+
+type PrivateSizeConfig
+    = PrivateSizeConfig SizeConfig.SizeConfig (Array.Array Float)
+
+
+getGridConfig : Config -> Grid.GridConfig
+getGridConfig c =
+    Grid.GridConfig
+        c.diameter
+        c.shape
+
+
+makeConfig :
     { diameter : Float
     , shape : Grid.Shape
     , sizeConfig : SizeConfig.SizeConfig
@@ -15,13 +58,11 @@ type alias Config =
     , newInBack : Bool
     , naturalColors : Bool
     }
-
-
-getGridConfig : Config -> Grid.GridConfig
-getGridConfig c =
-    Grid.GridConfig
-        c.diameter
-        c.shape
+    -> Config
+makeConfig c =
+    { c
+        | sizeConfig = PrivateSizeConfig c.sizeConfig (SizeConfig.getRadiuses c.sizeConfig)
+    }
 
 
 
@@ -72,27 +113,28 @@ rainbowPulse shape diameter bigRadiusFactor =
         colorPeriod =
             sizePeriod - 1
     in
-        { diameter = diameter
-        , shape = shape
-        , colorPeriod = colorPeriod
-        , sizeConfig =
-            SizeConfig.fromSegments
-                [ { length = sizePeriod
-                  , curve =
-                        SizeConfig.Linear
-                            { startRadius = (diameter / 2) * bigRadiusFactor
-                            , endRadius = 0
-                            , startInclusive = True
-                            , endInclusive = True
-                            }
-                  }
-                ]
-        , spotCount = colorPeriod * sizePeriod
-        , limitSpots = True
-        , colorsMove = True
-        , newInBack = False
-        , naturalColors = False
-        }
+        makeConfig
+            { diameter = diameter
+            , shape = shape
+            , colorPeriod = colorPeriod
+            , sizeConfig =
+                SizeConfig.fromSegments
+                    [ { length = sizePeriod
+                      , curve =
+                            SizeConfig.Linear
+                                { startRadius = (diameter / 2) * bigRadiusFactor
+                                , endRadius = 0
+                                , startInclusive = True
+                                , endInclusive = True
+                                }
+                      }
+                    ]
+            , spotCount = colorPeriod * sizePeriod
+            , limitSpots = True
+            , colorsMove = True
+            , newInBack = False
+            , naturalColors = False
+            }
 
 
 growShrink : Grid.Shape -> Float -> Float -> Config
@@ -143,16 +185,17 @@ growShrink shape diameter bigRadiusFactor =
         colorPeriod =
             sizePeriod // 2 - 1
     in
-        { diameter = diameter
-        , shape = shape
-        , colorPeriod = colorPeriod
-        , sizeConfig = sizeConfig
-        , spotCount = sizePeriod * colorPeriod
-        , limitSpots = True
-        , colorsMove = True
-        , newInBack = False
-        , naturalColors = False
-        }
+        makeConfig
+            { diameter = diameter
+            , shape = shape
+            , colorPeriod = colorPeriod
+            , sizeConfig = sizeConfig
+            , spotCount = sizePeriod * colorPeriod
+            , limitSpots = True
+            , colorsMove = True
+            , newInBack = False
+            , naturalColors = False
+            }
 
 
 justGrow : { shape : Grid.Shape, diameter : Float, endRadius : Float, spotCount : Int } -> Config
@@ -171,13 +214,30 @@ justGrow { shape, diameter, endRadius, spotCount } =
                   }
                 ]
     in
-        { diameter = diameter
-        , shape = shape
-        , colorPeriod = spotCount // 3
-        , sizeConfig = sizeConfig
-        , spotCount = spotCount
-        , limitSpots = True
-        , colorsMove = False
-        , newInBack = False
-        , naturalColors = False
-        }
+        makeConfig
+            { diameter = diameter
+            , shape = shape
+            , colorPeriod = spotCount // 3
+            , sizeConfig = sizeConfig
+            , spotCount = spotCount
+            , limitSpots = True
+            , colorsMove = False
+            , newInBack = False
+            , naturalColors = False
+            }
+
+
+setSizeConfig : Config -> SizeConfig.SizeConfig -> Config
+setSizeConfig config newSizeConfig =
+    { config
+        | sizeConfig = PrivateSizeConfig newSizeConfig (SizeConfig.getRadiuses newSizeConfig)
+    }
+
+
+getRadiuses : Config -> Array.Array Float
+getRadiuses config =
+    let
+        (PrivateSizeConfig _ radiuses) =
+            config.sizeConfig
+    in
+        radiuses

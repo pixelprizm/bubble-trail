@@ -212,6 +212,8 @@ update msg model =
         |> limitSpots
 
 
+{-| Limit spot count, leaving extra for the purpose of undo
+-}
 limitSpots : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 limitSpots ( model, c ) =
     ( { model
@@ -253,7 +255,7 @@ view model =
                 , SA.height (model.windowSize.height |> toString)
                 ]
                 ((List.indexedMap
-                    (viewSpot model.config <| SizeConfig.getRadiuses model.config.sizeConfig)
+                    (viewSpot model.config)
                     (List.append (getProvisionalSpots model) model.spots
                         |> if model.config.limitSpots then
                             List.take model.config.spotCount
@@ -297,8 +299,8 @@ view model =
         ]
 
 
-viewSpot : Config -> Array.Array Float -> Int -> Spot -> S.Svg Msg
-viewSpot config radiuses index spot =
+viewSpot : Config -> Int -> Spot -> S.Svg Msg
+viewSpot config index spot =
     S.g []
         (let
             --useInner =
@@ -327,6 +329,10 @@ viewSpot config radiuses index spot =
                        else
                         360
                       )
+
+            radiuses : Array.Array Float
+            radiuses =
+                Config.getRadiuses config
 
             sizePeriod : Int
             sizePeriod =
