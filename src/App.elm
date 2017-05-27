@@ -151,7 +151,7 @@ update msg model =
                     { model | pressedKeys = pressedKeys }
 
                 modelTakingIntoAccountDeleting =
-                    if pressedKeys |> List.member KE.CharZ then
+                    if (pressedKeys |> List.member KE.CharZ) || (pressedKeys |> List.member KE.BackSpace) then
                         { modelWithPressedKeysUpdated
                             | spots = modelWithPressedKeysUpdated.spots |> List.drop 1
                         }
@@ -188,7 +188,7 @@ update msg model =
                             }
                                 ! []
 
-                    Just (KE.KeyDown KE.BackSpace) ->
+                    Just (KE.KeyDown KE.Delete) ->
                         { modelTakingIntoAccountDeleting | spots = [] }
                             ! []
 
@@ -215,7 +215,7 @@ update msg model =
 limitSpots : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 limitSpots ( model, c ) =
     ( { model
-        | spots = model.spots |> List.take (model.config.spotCount * 4)
+        | spots = model.spots |> List.take (model.config.spotCount * 2)
       }
     , c
     )
