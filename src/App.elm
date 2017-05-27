@@ -151,7 +151,7 @@ update msg model =
                     { model | pressedKeys = pressedKeys }
 
                 modelTakingIntoAccountDeleting =
-                    if (pressedKeys |> List.member KE.CharZ) || (pressedKeys |> List.member KE.BackSpace) then
+                    if (pressedKeys |> List.member KE.Tab) || (pressedKeys |> List.member KE.BackSpace) then
                         { modelWithPressedKeysUpdated
                             | spots = modelWithPressedKeysUpdated.spots |> List.drop 1
                         }
