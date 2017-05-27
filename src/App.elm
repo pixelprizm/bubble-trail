@@ -23,16 +23,6 @@ import Config exposing (Config)
 import SizeConfig
 
 
-chosenConfig : Config
-chosenConfig =
-    --Config.justGrowHex Grid.PointyTop
-    --Config.justGrowSquare
-    --Config.growShrinkSquare
-    --Config.growShrinkHex Grid.FlatTop
-    --Config.rainbowPulseSquare
-    Config.rainbowPulseHex Grid.FlatTop
-
-
 type alias Spot =
     { index : Int
     , gridCoords : Grid.GridCoords
@@ -40,7 +30,8 @@ type alias Spot =
 
 
 type alias Model =
-    { spots : List Spot
+    { config : Config
+    , spots : List Spot
     , windowSize : Window.Size
     , pressedKeys : List KE.Key
     , lockLine :
@@ -74,7 +65,7 @@ getProvisionalSpots model =
 
                 Just end ->
                     Grid.getSnappedLineCoords
-                        (chosenConfig |> Config.getGridConfig)
+                        (model.config |> Config.getGridConfig)
                         start
                         end
                         |> List.indexedMap
@@ -83,7 +74,14 @@ getProvisionalSpots model =
 
 init : ( Model, Cmd Msg )
 init =
-    { spots = []
+    { config =
+        --Config.justGrowHex Grid.PointyTop
+        --Config.justGrowSquare
+        --Config.growShrinkSquare
+        --Config.growShrinkHex Grid.FlatTop
+        --Config.rainbowPulseHex Grid.PointyTop
+        Config.rainbowPulseSquare
+    , spots = []
     , windowSize = Window.Size 0 0
     , pressedKeys = []
     , lockLine = Nothing
@@ -112,7 +110,7 @@ update msg model =
 
                     nearestGridToMouse : Grid.GridCoords
                     nearestGridToMouse =
-                        mouse |> Grid.getGridCoords (chosenConfig |> Config.getGridConfig)
+                        mouse |> Grid.getGridCoords (model.config |> Config.getGridConfig)
                 in
                     case model.lockLine of
                         Nothing ->
@@ -152,8 +150,8 @@ update msg model =
                 modelWithPressedKeysUpdated =
                     { model | pressedKeys = pressedKeys }
 
-                modelTakingIntoAccountBackspace =
-                    if pressedKeys |> List.member KE.BackSpace then
+                modelTakingIntoAccountDeleting =
+                    if pressedKeys |> List.member KE.CharZ then
                         { modelWithPressedKeysUpdated
                             | spots = modelWithPressedKeysUpdated.spots |> List.drop 1
                         }
@@ -161,9 +159,6 @@ update msg model =
                         modelWithPressedKeysUpdated
             in
                 case possibleKeyChange of
-                    Nothing ->
-                        modelTakingIntoAccountBackspace ! []
-
                     Just (KE.KeyDown KE.Shift) ->
                         let
                             test =
@@ -178,35 +173,51 @@ update msg model =
                                     Just spot ->
                                         spot.gridCoords
                         in
-                            { modelTakingIntoAccountBackspace | lockLine = Just { start = lockLineStart, end = Nothing } } ! []
+                            { modelTakingIntoAccountDeleting | lockLine = Just { start = lockLineStart, end = Nothing } } ! []
 
-                    Just (KE.KeyDown key) ->
+                    Just (KE.KeyDown KE.CharL) ->
                         let
-                            test =
-                                Debug.log "key down" key
+                            oldConfig =
+                                model.config
                         in
-                            modelTakingIntoAccountBackspace ! []
+                            { modelTakingIntoAccountDeleting
+                                | config =
+                                    { oldConfig
+                                        | limitSpots = (not model.config.limitSpots)
+                                    }
+                            }
+                                ! []
+
+                    Just (KE.KeyDown KE.BackSpace) ->
+                        { modelTakingIntoAccountDeleting | spots = [] }
+                            ! []
 
                     Just (KE.KeyUp KE.Shift) ->
                         let
                             test =
                                 Debug.log "shift up" ""
                         in
-                            { modelTakingIntoAccountBackspace
+                            { modelTakingIntoAccountDeleting
                                 | lockLine = Nothing
                                 , spots = List.append (getProvisionalSpots model) model.spots
                             }
                                 ! []
 
-                    Just (KE.KeyUp key) ->
-                        let
-                            test =
-                                Debug.log "key up" key
-                        in
-                            modelTakingIntoAccountBackspace ! []
+                    _ ->
+                        modelTakingIntoAccountDeleting ! []
 
         WindowResize size ->
             { model | windowSize = size } ! []
+    )
+        |> limitSpots
+
+
+limitSpots : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
+limitSpots ( model, c ) =
+    ( { model
+        | spots = model.spots |> List.take (model.config.spotCount * 4)
+      }
+    , c
     )
 
 
@@ -242,11 +253,14 @@ view model =
                 , SA.height (model.windowSize.height |> toString)
                 ]
                 ((List.indexedMap
-                    (viewSpot <| SizeConfig.getRadiuses chosenConfig.sizeConfig)
+                    (viewSpot model.config <| SizeConfig.getRadiuses model.config.sizeConfig)
                     (List.append (getProvisionalSpots model) model.spots
-                        |> List.take chosenConfig.spotCount
+                        |> if model.config.limitSpots then
+                            List.take model.config.spotCount
+                           else
+                            identity
                     )
-                    |> (if chosenConfig.newInBack then
+                    |> (if model.config.newInBack then
                             identity
                         else
                             -- Reverse so that new spots show up over old spots:
@@ -259,9 +273,9 @@ view model =
                  --                S.g []
                  --                    -- Vertical line
                  --                    [ S.line
-                 --                        [ SA.x1 (toString (toFloat i * chosenConfig.diameter / 2))
+                 --                        [ SA.x1 (toString (toFloat i * model.config.diameter / 2))
                  --                        , SA.y1 "-4000"
-                 --                        , SA.x2 (toString (toFloat i * chosenConfig.diameter / 2))
+                 --                        , SA.x2 (toString (toFloat i * model.config.diameter / 2))
                  --                        , SA.y2 "4000"
                  --                        , SA.stroke "gray"
                  --                        ]
@@ -269,9 +283,9 @@ view model =
                  --                    -- Horizontal line
                  --                    , S.line
                  --                        [ SA.x1 "-4000"
-                 --                        , SA.y1 (toString (toFloat i * chosenConfig.diameter / 2 / sqrt 3))
+                 --                        , SA.y1 (toString (toFloat i * model.config.diameter / 2 / sqrt 3))
                  --                        , SA.x2 "4000"
-                 --                        , SA.y2 (toString (toFloat i * chosenConfig.diameter / 2 / sqrt 3))
+                 --                        , SA.y2 (toString (toFloat i * model.config.diameter / 2 / sqrt 3))
                  --                        , SA.stroke "gray"
                  --                        ]
                  --                        []
@@ -283,32 +297,32 @@ view model =
         ]
 
 
-viewSpot : Array.Array Float -> Int -> Spot -> S.Svg Msg
-viewSpot radiuses index spot =
+viewSpot : Config -> Array.Array Float -> Int -> Spot -> S.Svg Msg
+viewSpot config radiuses index spot =
     S.g []
         (let
             --useInner =
             --    False
             --innerRadius =
             --    --outerRadius * 0.8
-            --    --chosenConfig.spotRadius / toFloat i1
-            --    0.8 * chosenConfig.spotRadius * toFloat (chosenConfig.sizePeriod - i) / toFloat chosenConfig.sizePeriod
+            --    --config.spotRadius / toFloat i1
+            --    0.8 * config.spotRadius * toFloat (config.sizePeriod - i) / toFloat config.sizePeriod
             { svg_x, svg_y } =
-                Grid.getCenter (chosenConfig |> Config.getGridConfig) spot.gridCoords
+                Grid.getCenter (config |> Config.getGridConfig) spot.gridCoords
                     |> Grid.realToSvgCoordinates
 
             indexForColorRatio =
-                if chosenConfig.colorsMove then
+                if config.colorsMove then
                     index
                 else
                     spot.index
 
             colorRatio =
-                toFloat indexForColorRatio / toFloat chosenConfig.colorPeriod
+                toFloat indexForColorRatio / toFloat config.colorPeriod
 
             hue =
                 colorRatio
-                    * (if chosenConfig.naturalColors then
+                    * (if config.naturalColors then
                         240
                        else
                         360

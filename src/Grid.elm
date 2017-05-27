@@ -253,12 +253,6 @@ getSnappedLineCoords config start unsnappedEnd =
                 |> (*) thetaRoundingIncrement
                 |> (+) offset
 
-        test =
-            Debug.log "snappedTheta" snappedTheta
-
-        ( snappedX, snappedY ) =
-            fromPolar ( r, snappedTheta )
-
         snappedLineLengthRounded : Int
         snappedLineLengthRounded =
             round (r / config.diameter)

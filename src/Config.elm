@@ -10,6 +10,7 @@ type alias Config =
     , sizeConfig : SizeConfig.SizeConfig
     , colorPeriod : Int
     , spotCount : Int
+    , limitSpots : Bool
     , colorsMove : Bool
     , newInBack : Bool
     , naturalColors : Bool
@@ -87,6 +88,7 @@ rainbowPulse shape diameter bigRadiusFactor =
                   }
                 ]
         , spotCount = colorPeriod * sizePeriod
+        , limitSpots = True
         , colorsMove = True
         , newInBack = False
         , naturalColors = False
@@ -146,6 +148,7 @@ growShrink shape diameter bigRadiusFactor =
         , colorPeriod = colorPeriod
         , sizeConfig = sizeConfig
         , spotCount = sizePeriod * colorPeriod
+        , limitSpots = True
         , colorsMove = True
         , newInBack = False
         , naturalColors = False
@@ -173,6 +176,7 @@ justGrow { shape, diameter, endRadius, spotCount } =
         , colorPeriod = spotCount // 3
         , sizeConfig = sizeConfig
         , spotCount = spotCount
+        , limitSpots = True
         , colorsMove = False
         , newInBack = False
         , naturalColors = False
