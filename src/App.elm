@@ -3,7 +3,6 @@ module App exposing (..)
 -- Others'
 
 import Array
-import Char
 import Debug
 import Html as H
 import Html.Attributes as H
@@ -20,11 +19,11 @@ import Window
 import CreativeCommonsLicense
 import Grid
 import Config exposing (Config)
-import SizeConfig
 
 
 type alias Spot =
     { index : Int
+    , visible : Bool
     , gridCoords : Grid.GridCoords
     }
 
@@ -39,37 +38,8 @@ type alias Model =
             { start : Grid.GridCoords
             , unsnappedEnd : Maybe Grid.RealCoords
             }
+    , hoverSpotCoords : Maybe Grid.GridCoords
     }
-
-
-getNewSpotIndex : Model -> Int
-getNewSpotIndex model =
-    case List.head model.spots of
-        Nothing ->
-            0
-
-        Just spot ->
-            spot.index + 1
-
-
-getProvisionalSpots : Model -> List Spot
-getProvisionalSpots model =
-    case model.lockLine of
-        Nothing ->
-            []
-
-        Just { start, unsnappedEnd } ->
-            case unsnappedEnd of
-                Nothing ->
-                    []
-
-                Just unsnappedEnd ->
-                    Grid.snapLine (model.config |> Config.getGridConfig)
-                        start
-                        unsnappedEnd
-                        |> Grid.getGridLine (model.config |> Config.getGridConfig)
-                        |> List.indexedMap
-                            (\i coords -> Spot (i + getNewSpotIndex model) coords)
 
 
 init : ( Model, Cmd Msg )
@@ -85,6 +55,7 @@ init =
     , windowSize = Window.Size 0 0
     , pressedKeys = []
     , lockLine = Nothing
+    , hoverSpotCoords = Nothing
     }
         ! [ Task.perform WindowResize Window.size
           ]
@@ -100,37 +71,25 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     (case msg of
         MouseMove mousePosition ->
-            if model.pressedKeys |> List.member KE.Space then
-                model ! []
-            else
-                let
-                    mouse : Grid.RealCoords
-                    mouse =
-                        mousePosition |> Grid.mouseToRealCoordinates model.windowSize
+            let
+                mouse : Grid.RealCoords
+                mouse =
+                    mousePosition |> Grid.mouseToRealCoordinates model.windowSize
 
-                    nearestGridToMouse : Grid.GridCoords
-                    nearestGridToMouse =
-                        mouse |> Grid.getGridCoords (model.config |> Config.getGridConfig)
-                in
+                nearestGridToMouse : Grid.GridCoords
+                nearestGridToMouse =
+                    mouse |> Grid.getGridCoords (model.config |> Config.getGridConfig)
+            in
+                if model.pressedKeys |> List.member KE.Space then
+                    { model
+                        | hoverSpotCoords = Just nearestGridToMouse
+                    }
+                        ! []
+                else
                     case model.lockLine of
                         Nothing ->
-                            let
-                                newSpotIndex : Int
-                                newSpotIndex =
-                                    getNewSpotIndex model
-                            in
-                                case List.head model.spots of
-                                    Nothing ->
-                                        { model | spots = [ Spot newSpotIndex nearestGridToMouse ] } ! []
-
-                                    Just spot ->
-                                        if spot.gridCoords == nearestGridToMouse then
-                                            model ! []
-                                        else
-                                            { model
-                                                | spots = (Spot newSpotIndex nearestGridToMouse) :: model.spots
-                                            }
-                                                ! []
+                            insertNewSpotIfNotRepeat True nearestGridToMouse model
+                                ! []
 
                         Just lockLineDefinition ->
                             { model
@@ -150,20 +109,26 @@ update msg model =
                 modelWithPressedKeysUpdated =
                     { model | pressedKeys = pressedKeys }
 
-                modelTakingIntoAccountDeleting =
+                modelAfterDeleting =
                     if (pressedKeys |> List.member KE.Tab) || (pressedKeys |> List.member KE.BackSpace) then
                         { modelWithPressedKeysUpdated
                             | spots = modelWithPressedKeysUpdated.spots |> List.drop 1
                         }
                     else
                         modelWithPressedKeysUpdated
+
+                modelAfterInvisibling =
+                    if pressedKeys |> List.member KE.CharX then
+                        insertNewSpotIfNotRepeat
+                            False
+                            (Grid.GridCoords 0 0)
+                            modelAfterDeleting
+                    else
+                        modelAfterDeleting
             in
                 case possibleKeyChange of
                     Just (KE.KeyDown KE.Shift) ->
                         let
-                            test =
-                                Debug.log "shift down" ""
-
                             lockLineStart : Grid.GridCoords
                             lockLineStart =
                                 case List.head model.spots of
@@ -173,14 +138,17 @@ update msg model =
                                     Just spot ->
                                         spot.gridCoords
                         in
-                            { modelTakingIntoAccountDeleting | lockLine = Just { start = lockLineStart, unsnappedEnd = Nothing } } ! []
+                            { modelAfterInvisibling
+                                | lockLine = Just { start = lockLineStart, unsnappedEnd = Nothing }
+                            }
+                                ! []
 
                     Just (KE.KeyDown KE.CharL) ->
                         let
                             oldConfig =
                                 model.config
                         in
-                            { modelTakingIntoAccountDeleting
+                            { modelAfterInvisibling
                                 | config =
                                     { oldConfig
                                         | limitSpots = (not model.config.limitSpots)
@@ -189,22 +157,31 @@ update msg model =
                                 ! []
 
                     Just (KE.KeyDown KE.Delete) ->
-                        { modelTakingIntoAccountDeleting | spots = [] }
+                        { modelAfterInvisibling | spots = [] }
                             ! []
 
                     Just (KE.KeyUp KE.Shift) ->
-                        let
-                            test =
-                                Debug.log "shift up" ""
-                        in
-                            { modelTakingIntoAccountDeleting
-                                | lockLine = Nothing
-                                , spots = List.append (getProvisionalSpots model) model.spots
-                            }
-                                ! []
+                        { modelAfterInvisibling
+                            | lockLine = Nothing
+                            , spots = List.append (getProvisionalSpots model) model.spots
+                        }
+                            ! []
+
+                    Just (KE.KeyUp KE.Space) ->
+                        case modelAfterInvisibling.hoverSpotCoords of
+                            Nothing ->
+                                model ! []
+
+                            Just coords ->
+                                insertNewSpotIfNotRepeat True
+                                    coords
+                                    { modelAfterInvisibling
+                                        | hoverSpotCoords = Nothing
+                                    }
+                                    ! []
 
                     _ ->
-                        modelTakingIntoAccountDeleting ! []
+                        modelAfterInvisibling ! []
 
         WindowResize size ->
             { model | windowSize = size } ! []
@@ -230,6 +207,10 @@ subscriptions model =
         , Mouse.moves MouseMove
         , Sub.map KeyMsg KE.subscriptions
         ]
+
+
+
+-- VIEW AND VIEW HELPERS
 
 
 view : Model -> H.Html Msg
@@ -270,6 +251,7 @@ view model =
                        )
                  )
                     ++ [ viewGuidelines model ]
+                    ++ [ viewHoverSpot model ]
                  --++ ((List.range -100 100)
                  --        |> List.map
                  --            (\i ->
@@ -303,95 +285,98 @@ view model =
 viewSpot : Config -> Int -> Spot -> S.Svg Msg
 viewSpot config index spot =
     S.g []
-        (let
-            --useInner =
-            --    False
-            --innerRadius =
-            --    --outerRadius * 0.8
-            --    --config.spotRadius / toFloat i1
-            --    0.8 * config.spotRadius * toFloat (config.sizePeriod - i) / toFloat config.sizePeriod
-            { svg_x, svg_y } =
-                Grid.getCenter (config |> Config.getGridConfig) spot.gridCoords
-                    |> Grid.realToSvgCoordinates
+        (if spot.visible then
+            let
+                --useInner =
+                --    False
+                --innerRadius =
+                --    --outerRadius * 0.8
+                --    --config.spotRadius / toFloat i1
+                --    0.8 * config.spotRadius * toFloat (config.sizePeriod - i) / toFloat config.sizePeriod
+                { svg_x, svg_y } =
+                    Grid.getCenter (config |> Config.getGridConfig) spot.gridCoords
+                        |> Grid.realToSvgCoordinates
 
-            indexForColorRatio =
-                if config.colorsMove then
-                    index
-                else
-                    spot.index
+                indexForColorRatio =
+                    if config.colorsMove then
+                        index
+                    else
+                        spot.index
 
-            colorRatio =
-                toFloat indexForColorRatio / toFloat config.colorPeriod
+                colorRatio =
+                    toFloat indexForColorRatio / toFloat config.colorPeriod
 
-            hue =
-                colorRatio
-                    * (if config.naturalColors then
-                        240
-                       else
-                        360
-                      )
+                hue =
+                    colorRatio
+                        * (if config.naturalColors then
+                            240
+                           else
+                            360
+                          )
 
-            radiuses : Array.Array Float
-            radiuses =
-                Config.getRadiuses config
+                radiuses : Array.Array Float
+                radiuses =
+                    Config.getRadiuses config
 
-            sizePeriod : Int
-            sizePeriod =
-                Array.length radiuses
+                sizePeriod : Int
+                sizePeriod =
+                    Array.length radiuses
 
-            radius : Float
-            radius =
-                case radiuses |> Array.get (index % sizePeriod) of
-                    Nothing ->
-                        0
+                radius : Float
+                radius =
+                    case radiuses |> Array.get (index % sizePeriod) of
+                        Nothing ->
+                            0
 
-                    Just r ->
-                        r
+                        Just r ->
+                            r
 
-            outerHsl =
-                --{ h = 0
-                { h = hue
+                outerHsl =
+                    --{ h = 0
+                    { h = hue
 
-                --, s = 0
-                , s = 100
+                    --, s = 0
+                    , s = 100
 
-                --, l = 70
-                --, l = 0
-                , l = 50
-                }
+                    --, l = 70
+                    --, l = 0
+                    , l = 50
+                    }
 
-            --innerHsl =
-            --    { h = hue
-            --    --{ h = hue
-            --    --, s = 0
-            --    , s = 100
-            --    --, l = 0
-            --    --, l = 70
-            --    , l = 50
-            --    }
-            hslToString { h, s, l } =
-                "hsl(" ++ toString h ++ "," ++ toString s ++ "%," ++ toString l ++ "%)"
-         in
-            ([ S.circle
-                [ SA.cx (svg_x |> toString)
-                , SA.cy (svg_y |> toString)
-                , SA.r (radius |> toString)
-                , SA.fill (outerHsl |> hslToString)
-                ]
-                []
-             ]
-             --++ if useInner then
-             --    [ S.circle
-             --        [ SA.cx (x |> toString)
-             --        , SA.cy (y |> toString)
-             --        , SA.r (innerRadius |> toString)
-             --        , SA.fill (innerHsl |> hslToString)
-             --        ]
-             --        []
-             --    ]
-             --   else
-             --    []
-            )
+                --innerHsl =
+                --    { h = hue
+                --    --{ h = hue
+                --    --, s = 0
+                --    , s = 100
+                --    --, l = 0
+                --    --, l = 70
+                --    , l = 50
+                --    }
+                hslToString { h, s, l } =
+                    "hsl(" ++ toString h ++ "," ++ toString s ++ "%," ++ toString l ++ "%)"
+            in
+                ([ S.circle
+                    [ SA.cx (svg_x |> toString)
+                    , SA.cy (svg_y |> toString)
+                    , SA.r (radius |> toString)
+                    , SA.fill (outerHsl |> hslToString)
+                    ]
+                    []
+                 ]
+                 --++ if useInner then
+                 --    [ S.circle
+                 --        [ SA.cx (x |> toString)
+                 --        , SA.cy (y |> toString)
+                 --        , SA.r (innerRadius |> toString)
+                 --        , SA.fill (innerHsl |> hslToString)
+                 --        ]
+                 --        []
+                 --    ]
+                 --   else
+                 --    []
+                )
+         else
+            []
         )
 
 
@@ -403,34 +388,124 @@ viewGuidelines model =
                 []
 
             Just { start } ->
+                viewGuidelinesFrom model start
+
+
+viewGuidelinesFrom : Model -> Grid.GridCoords -> List (S.Svg Msg)
+viewGuidelinesFrom model start =
+    let
+        lineStartCenter =
+            Grid.getCenter
+                (model.config |> Config.getGridConfig)
+                start
+    in
+        Grid.getCardinalThetas model.config.shape
+            |> List.concatMap
+                (\theta ->
+                    ( lineStartCenter, 100, theta )
+                        |> Grid.getGridLine (model.config |> Config.getGridConfig)
+                        |> List.map
+                            (\gridCoords ->
+                                let
+                                    { svg_x, svg_y } =
+                                        Grid.getCenter (model.config |> Config.getGridConfig) gridCoords
+                                            |> Grid.realToSvgCoordinates
+
+                                    radius =
+                                        model.config.diameter * 0.1
+                                in
+                                    S.circle
+                                        [ SA.cx (svg_x |> toString)
+                                        , SA.cy (svg_y |> toString)
+                                        , SA.r (radius |> toString)
+                                        , SA.fill "hsl(0,0%,100%)"
+                                        , SA.opacity "0.2"
+                                        ]
+                                        []
+                            )
+                )
+
+
+viewHoverSpot : Model -> S.Svg Msg
+viewHoverSpot model =
+    S.g [] <|
+        case model.hoverSpotCoords of
+            Nothing ->
+                []
+
+            Just coords ->
                 let
-                    lineStartCenter =
+                    { svg_x, svg_y } =
                         Grid.getCenter
                             (model.config |> Config.getGridConfig)
-                            start
-                in
-                    Grid.getCardinalThetas model.config.shape
-                        |> List.concatMap
-                            (\theta ->
-                                ( lineStartCenter, 100, theta )
-                                    |> Grid.getGridLine (model.config |> Config.getGridConfig)
-                                    |> List.map
-                                        (\gridCoords ->
-                                            let
-                                                { svg_x, svg_y } =
-                                                    Grid.getCenter (model.config |> Config.getGridConfig) gridCoords
-                                                        |> Grid.realToSvgCoordinates
+                            coords
+                            |> Grid.realToSvgCoordinates
 
-                                                radius =
-                                                    model.config.diameter * 0.1
-                                            in
-                                                S.circle
-                                                    [ SA.cx (svg_x |> toString)
-                                                    , SA.cy (svg_y |> toString)
-                                                    , SA.r (radius |> toString)
-                                                    , SA.fill "hsl(0,0%,100%)"
-                                                    , SA.opacity "0.2"
-                                                    ]
-                                                    []
-                                        )
-                            )
+                    radius =
+                        model.config.diameter / 2
+                in
+                    [ S.circle
+                        [ SA.cx (svg_x |> toString)
+                        , SA.cy (svg_y |> toString)
+                        , SA.r (radius |> toString)
+                        , SA.fill "hsl(0,0%,100%)"
+                        , SA.opacity "0.4"
+                        ]
+                        []
+                    ]
+                        ++ viewGuidelinesFrom model coords
+
+
+
+-- OTHER HELPERS
+
+
+getNewSpotIndex : Model -> Int
+getNewSpotIndex model =
+    case List.head model.spots of
+        Nothing ->
+            0
+
+        Just spot ->
+            spot.index + 1
+
+
+insertNewSpotIfNotRepeat : Bool -> Grid.GridCoords -> Model -> Model
+insertNewSpotIfNotRepeat visible coords model =
+    let
+        newSpotIndex : Int
+        newSpotIndex =
+            getNewSpotIndex model
+    in
+        case List.head model.spots of
+            Nothing ->
+                { model | spots = [ Spot newSpotIndex visible coords ] }
+
+            Just spot ->
+                -- Note: if not visible, don't worry if we're making a spot on top of a spot.
+                if visible && spot.gridCoords == coords then
+                    model
+                else
+                    { model
+                        | spots = (Spot newSpotIndex visible coords) :: model.spots
+                    }
+
+
+getProvisionalSpots : Model -> List Spot
+getProvisionalSpots model =
+    case model.lockLine of
+        Nothing ->
+            []
+
+        Just { start, unsnappedEnd } ->
+            case unsnappedEnd of
+                Nothing ->
+                    []
+
+                Just unsnappedEnd ->
+                    Grid.snapLine (model.config |> Config.getGridConfig)
+                        start
+                        unsnappedEnd
+                        |> Grid.getGridLine (model.config |> Config.getGridConfig)
+                        |> List.indexedMap
+                            (\i coords -> Spot (i + getNewSpotIndex model) True coords)
