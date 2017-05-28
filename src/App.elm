@@ -37,7 +37,7 @@ type alias Model =
     , lockLine :
         Maybe
             { start : Grid.GridCoords
-            , end : Maybe Grid.RealCoords
+            , unsnappedEnd : Maybe Grid.RealCoords
             }
     }
 
@@ -58,16 +58,16 @@ getProvisionalSpots model =
         Nothing ->
             []
 
-        Just { start, end } ->
-            case end of
+        Just { start, unsnappedEnd } ->
+            case unsnappedEnd of
                 Nothing ->
                     []
 
-                Just end ->
-                    Grid.getSnappedLineCoords
-                        (model.config |> Config.getGridConfig)
+                Just unsnappedEnd ->
+                    Grid.snapLine (model.config |> Config.getGridConfig)
                         start
-                        end
+                        unsnappedEnd
+                        |> Grid.getGridLine (model.config |> Config.getGridConfig)
                         |> List.indexedMap
                             (\i coords -> Spot (i + getNewSpotIndex model) coords)
 
@@ -79,8 +79,8 @@ init =
         --Config.justGrowSquare
         --Config.growShrinkSquare
         --Config.growShrinkHex Grid.FlatTop
-        --Config.rainbowPulseHex Grid.PointyTop
-        Config.rainbowPulseSquare
+        --Config.rainbowPulseSquare
+        Config.rainbowPulseHex Grid.PointyTop
     , spots = []
     , windowSize = Window.Size 0 0
     , pressedKeys = []
@@ -137,7 +137,7 @@ update msg model =
                                 | lockLine =
                                     Just
                                         { lockLineDefinition
-                                            | end = Just mouse
+                                            | unsnappedEnd = Just mouse
                                         }
                             }
                                 ! []
@@ -173,7 +173,7 @@ update msg model =
                                     Just spot ->
                                         spot.gridCoords
                         in
-                            { modelTakingIntoAccountDeleting | lockLine = Just { start = lockLineStart, end = Nothing } } ! []
+                            { modelTakingIntoAccountDeleting | lockLine = Just { start = lockLineStart, unsnappedEnd = Nothing } } ! []
 
                     Just (KE.KeyDown KE.CharL) ->
                         let
@@ -269,6 +269,7 @@ view model =
                             List.reverse
                        )
                  )
+                    ++ [ viewGuidelines model ]
                  --++ ((List.range -100 100)
                  --        |> List.map
                  --            (\i ->
@@ -392,3 +393,44 @@ viewSpot config index spot =
              --    []
             )
         )
+
+
+viewGuidelines : Model -> S.Svg Msg
+viewGuidelines model =
+    S.g [] <|
+        case model.lockLine of
+            Nothing ->
+                []
+
+            Just { start } ->
+                let
+                    lineStartCenter =
+                        Grid.getCenter
+                            (model.config |> Config.getGridConfig)
+                            start
+                in
+                    Grid.getCardinalThetas model.config.shape
+                        |> List.concatMap
+                            (\theta ->
+                                ( lineStartCenter, 100, theta )
+                                    |> Grid.getGridLine (model.config |> Config.getGridConfig)
+                                    |> List.map
+                                        (\gridCoords ->
+                                            let
+                                                { svg_x, svg_y } =
+                                                    Grid.getCenter (model.config |> Config.getGridConfig) gridCoords
+                                                        |> Grid.realToSvgCoordinates
+
+                                                radius =
+                                                    model.config.diameter * 0.1
+                                            in
+                                                S.circle
+                                                    [ SA.cx (svg_x |> toString)
+                                                    , SA.cy (svg_y |> toString)
+                                                    , SA.r (radius |> toString)
+                                                    , SA.fill "hsl(0,0%,100%)"
+                                                    , SA.opacity "0.2"
+                                                    ]
+                                                    []
+                                        )
+                            )
