@@ -3,9 +3,12 @@ module App exposing (..)
 -- Others'
 
 import Array
-import Debug
+
+
+--import Debug
+
 import Html as H
-import Html.Attributes as H
+import Html.Attributes as HA
 import Keyboard.Extra as KE
 import Mouse
 import Svg as S
@@ -16,9 +19,9 @@ import Window
 
 -- Mine
 
-import CreativeCommonsLicense
 import Grid
 import Config exposing (Config)
+import ConfigPanel
 
 
 type alias Spot =
@@ -29,7 +32,7 @@ type alias Spot =
 
 
 type alias Model =
-    { config : Config
+    { configPanel : ConfigPanel.Model
     , spots : List Spot
     , windowSize : Window.Size
     , pressedKeys : List KE.Key
@@ -39,23 +42,24 @@ type alias Model =
             , unsnappedEnd : Maybe Grid.RealCoords
             }
     , hoverSpotCoords : Maybe Grid.GridCoords
+    , optionsOpen : Bool
     }
+
+
+config : Model -> Config
+config =
+    .configPanel >> ConfigPanel.config
 
 
 init : ( Model, Cmd Msg )
 init =
-    { config =
-        --Config.justGrowHex Grid.PointyTop
-        --Config.justGrowSquare
-        --Config.growShrinkSquare
-        --Config.growShrinkHex Grid.FlatTop
-        --Config.rainbowPulseSquare
-        Config.rainbowPulseHex Grid.PointyTop
+    { configPanel = ConfigPanel.init
     , spots = []
     , windowSize = Window.Size 0 0
     , pressedKeys = []
     , lockLine = Nothing
     , hoverSpotCoords = Nothing
+    , optionsOpen = False
     }
         ! [ Task.perform WindowResize Window.size
           ]
@@ -65,6 +69,7 @@ type Msg
     = MouseMove Mouse.Position
     | KeyMsg KE.Msg
     | WindowResize Window.Size
+    | ConfigPanelMsg ConfigPanel.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -78,7 +83,7 @@ update msg model =
 
                 nearestGridToMouse : Grid.GridCoords
                 nearestGridToMouse =
-                    mouse |> Grid.getGridCoords (model.config |> Config.getGridConfig)
+                    mouse |> Grid.getGridCoords ((config model) |> Config.getGridConfig)
             in
                 if model.pressedKeys |> List.member KE.Space then
                     { model
@@ -146,13 +151,15 @@ update msg model =
                     Just (KE.KeyDown KE.CharL) ->
                         let
                             oldConfig =
-                                model.config
+                                (config model)
                         in
                             { modelAfterInvisibling
-                                | config =
-                                    { oldConfig
-                                        | limitSpots = (not model.config.limitSpots)
-                                    }
+                                | configPanel =
+                                    ConfigPanel.setConfig
+                                        { oldConfig
+                                            | limitSpots = (not oldConfig.limitSpots)
+                                        }
+                                        modelAfterInvisibling.configPanel
                             }
                                 ! []
 
@@ -185,6 +192,13 @@ update msg model =
 
         WindowResize size ->
             { model | windowSize = size } ! []
+
+        ConfigPanelMsg m ->
+            let
+                ( configPanelModel, configPanelCmd ) =
+                    ConfigPanel.update m model.configPanel
+            in
+                { model | configPanel = configPanelModel } ! [ Cmd.map ConfigPanelMsg configPanelCmd ]
     )
         |> limitSpots
 
@@ -194,7 +208,7 @@ update msg model =
 limitSpots : ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
 limitSpots ( model, c ) =
     ( { model
-        | spots = model.spots |> List.take (model.config.spotCount * 2)
+        | spots = model.spots |> List.take ((config model).spotCount * 2)
       }
     , c
     )
@@ -215,11 +229,11 @@ subscriptions model =
 
 view : Model -> H.Html Msg
 view model =
-    H.div [ H.id "app" ]
-        [ H.div [ H.id "overlay" ]
-            [ CreativeCommonsLicense.view [ H.class "license" ]
+    H.div [ HA.id "app" ]
+        [ H.div [ HA.id "overlay" ]
+            [ ConfigPanel.view model.configPanel |> H.map ConfigPanelMsg
             ]
-        , H.div [ H.class "svgContainer" ]
+        , H.div [ HA.class "svgContainer" ]
             [ S.svg
                 [ SA.id "graphics"
                 , SA.viewBox <|
@@ -236,14 +250,14 @@ view model =
                 , SA.height (model.windowSize.height |> toString)
                 ]
                 ((List.indexedMap
-                    (viewSpot model.config)
+                    (viewSpot (config model))
                     (List.append (getProvisionalSpots model) model.spots
-                        |> if model.config.limitSpots then
-                            List.take model.config.spotCount
+                        |> if (config model).limitSpots then
+                            List.take (config model).spotCount
                            else
                             identity
                     )
-                    |> (if model.config.newInBack then
+                    |> (if (config model).newInBack then
                             identity
                         else
                             -- Reverse so that new spots show up over old spots:
@@ -258,9 +272,9 @@ view model =
                  --                S.g []
                  --                    -- Vertical line
                  --                    [ S.line
-                 --                        [ SA.x1 (toString (toFloat i * model.config.diameter / 2))
+                 --                        [ SA.x1 (toString (toFloat i * (config model).diameter / 2))
                  --                        , SA.y1 "-4000"
-                 --                        , SA.x2 (toString (toFloat i * model.config.diameter / 2))
+                 --                        , SA.x2 (toString (toFloat i * (config model).diameter / 2))
                  --                        , SA.y2 "4000"
                  --                        , SA.stroke "gray"
                  --                        ]
@@ -268,9 +282,9 @@ view model =
                  --                    -- Horizontal line
                  --                    , S.line
                  --                        [ SA.x1 "-4000"
-                 --                        , SA.y1 (toString (toFloat i * model.config.diameter / 2 / sqrt 3))
+                 --                        , SA.y1 (toString (toFloat i * (config model).diameter / 2 / sqrt 3))
                  --                        , SA.x2 "4000"
-                 --                        , SA.y2 (toString (toFloat i * model.config.diameter / 2 / sqrt 3))
+                 --                        , SA.y2 (toString (toFloat i * (config model).diameter / 2 / sqrt 3))
                  --                        , SA.stroke "gray"
                  --                        ]
                  --                        []
@@ -396,23 +410,23 @@ viewGuidelinesFrom model start =
     let
         lineStartCenter =
             Grid.getCenter
-                (model.config |> Config.getGridConfig)
+                ((config model) |> Config.getGridConfig)
                 start
     in
-        Grid.getCardinalThetas model.config.shape
+        Grid.getCardinalThetas (config model).shape
             |> List.concatMap
                 (\theta ->
                     ( lineStartCenter, 100, theta )
-                        |> Grid.getGridLine (model.config |> Config.getGridConfig)
+                        |> Grid.getGridLine ((config model) |> Config.getGridConfig)
                         |> List.map
                             (\gridCoords ->
                                 let
                                     { svg_x, svg_y } =
-                                        Grid.getCenter (model.config |> Config.getGridConfig) gridCoords
+                                        Grid.getCenter ((config model) |> Config.getGridConfig) gridCoords
                                             |> Grid.realToSvgCoordinates
 
                                     radius =
-                                        model.config.diameter * 0.1
+                                        (config model).diameter * 0.1
                                 in
                                     S.circle
                                         [ SA.cx (svg_x |> toString)
@@ -437,12 +451,12 @@ viewHoverSpot model =
                 let
                     { svg_x, svg_y } =
                         Grid.getCenter
-                            (model.config |> Config.getGridConfig)
+                            ((config model) |> Config.getGridConfig)
                             coords
                             |> Grid.realToSvgCoordinates
 
                     radius =
-                        model.config.diameter / 2
+                        (config model).diameter / 2
                 in
                     [ S.circle
                         [ SA.cx (svg_x |> toString)
@@ -503,9 +517,9 @@ getProvisionalSpots model =
                     []
 
                 Just unsnappedEnd ->
-                    Grid.snapLine (model.config |> Config.getGridConfig)
+                    Grid.snapLine ((config model) |> Config.getGridConfig)
                         start
                         unsnappedEnd
-                        |> Grid.getGridLine (model.config |> Config.getGridConfig)
+                        |> Grid.getGridLine ((config model) |> Config.getGridConfig)
                         |> List.indexedMap
                             (\i coords -> Spot (i + getNewSpotIndex model) True coords)

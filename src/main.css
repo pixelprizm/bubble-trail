@@ -1,3 +1,17 @@
+@font-face {
+    font-family: 'Fabfelt Script';
+    src: url('assets/fonts/fabfeltscript-bold.eot');
+    src: url('assets/fonts/fabfeltscript-bold.eot?#iefix') format('embedded-opentype'),
+         url('assets/fonts/fabfeltscript-bold.woff2') format('woff2'),
+         url('assets/fonts/fabfeltscript-bold.woff') format('woff'),
+         url('assets/fonts/fabfeltscript-bold.ttf') format('truetype'),
+         url('assets/fonts/fabfeltscript-bold.svg#fabfeltscriptbold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+* {
+  box-sizing: border-box;
+}
 body {
   position: fixed;
   top: 0;
@@ -6,6 +20,7 @@ body {
   bottom: 0;
   margin: 0;
 }
+
 #app {
   position: absolute;
   top: 0;
@@ -14,8 +29,10 @@ body {
   bottom: 0;
   margin: 0;
 
-  font-family: 'Source Sans Pro', 'Trebuchet MS', 'Lucida Grande', 'Bitstream Vera Sans', 'Helvetica Neue', sans-serif;
-  font-size: 30px;
+  user-select: none;
+  font-family: 'Raleway', sans-serif;
+  font-weight: 100;
+  font-size: 16px;
   cursor: crosshair;
 }
 
@@ -26,7 +43,6 @@ body {
   right: 0;
   bottom: 0;
   z-index: 10;
-  text-align: center;
 }
 
 .svgContainer {
@@ -48,4 +64,98 @@ body {
   position: absolute;
   right: 0;
   bottom: 0;
+}
+
+.ConfigPanelContainer {
+  display: flex;
+  flex-direction: row;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  justify-content: flex-end;
+}
+
+.ConfigPanel {
+  background-color: rgba(23,23,31,0.8);
+  color: rgba(255,255,255,0.7);
+  flex: 0 1 30em;
+  transition: transform 0.5s;
+  position: relative;
+
+  cursor: unset;
+}
+.ConfigPanelClosed .ConfigPanel {
+  transform: translateX(100%);
+}
+
+.ConfigPanelToggleContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.ConfigPanelToggle {
+  padding: 0.4em;
+  cursor: pointer;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 0.5s, opacity 0.5s;
+}
+.ConfigPanelToggle:hover {
+  background-color: rgba(255,255,255,0.6);
+}
+.ConfigPanelToggle:active {
+  background-color: rgba(255,255,255,0.4);
+}
+
+.ConfigPanelClosed .ConfigPanelToggle {
+  transform: translateX(-100%);
+}
+.ConfigPanelToggle.opener {
+  opacity: 0;
+  z-index: 20;
+}
+.ConfigPanelClosed .ConfigPanelToggle.opener {
+  opacity: 1;
+  z-index: 21;
+}
+.ConfigPanelToggle.closer {
+  opacity: 1;
+  z-index: 21;
+}
+.ConfigPanelClosed .ConfigPanelToggle.closer {
+  opacity: 0;
+  z-index: 20;
+}
+
+
+.ConfigPanelOptionsArea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: scroll;
+  padding: 0.5em;
+}
+
+.ConfigPanelTitle {
+  font-size: 5em;
+  font-family: "Fabfelt Script";
+  color: white;
+  opacity: 0.7;
+  margin: 0.2em 0 0;
+  text-align: center;
+  font-weight: normal;
+}
+.ConfigPanelSubtitle {
+  font-size: 1.8em;
+  font-family: "Raleway";
+  color: white;
+  opacity: 0.5;
+  margin: -0.5em 0 1em;
+  text-align: center;
+  font-weight: 100;
 }
