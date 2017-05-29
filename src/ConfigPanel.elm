@@ -22,14 +22,14 @@ type alias Model =
 
 init : Model
 init =
-    { panelOpen = True
+    { panelOpen = False
 
-    --, Config.justGrowHex Grid.PointyTop
-    --, Config.justGrowSquare
-    --, Config.growShrinkSquare
-    --, Config.growShrinkHex Grid.FlatTop
-    --, Config.rainbowPulseSquare
-    , config = Config.rainbowPulseHex Grid.PointyTop
+    --, config = Config.justGrowHex Grid.PointyTop
+    --, config = Config.justGrowSquare
+    --, config = Config.growShrinkSquare
+    --, config = Config.growShrinkHex Grid.FlatTop
+    --, config = Config.rainbowPulseHex Grid.PointyTop
+    , config = Config.rainbowPulseSquare
     }
 
 
@@ -91,21 +91,24 @@ view model =
                 , H.h2 [ HA.class "ConfigPanelSubtitle" ] [ H.text "by eric gauderman" ]
                 , H.div [ HA.class "ConfigPanelOptionsBody" ]
                     [ H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "controls" ]
-                    , viewKeyboardControls
+                    , viewKeyboardControls model
                     , H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "options" ]
-                    , viewOptions
-                    , H.div [ HA.class "ConfigPanelLicenseContainer" ] [ CreativeCommonsLicense.view [] ]
+                    , viewOptions model
+                    , H.div [ HA.class "ConfigPanelLicenseRow" ]
+                        [ H.div [ HA.class "ConfigPanelLicenseContainer" ] [ CreativeCommonsLicense.view [] ]
+                        ]
                     ]
                 ]
             ]
         ]
 
 
-viewKeyboardControls =
+viewKeyboardControls : Model -> H.Html Msg
+viewKeyboardControls model =
     let
         keyboardControlw =
-            [ ( [ "space" ], "move cursor without drawing", "" )
-            , ( [ "shift" ], "snap to line", "" )
+            [ ( [ "space" ], "hold to move cursor without drawing", "" )
+            , ( [ "shift" ], "hold to snap to line", "" )
             , ( [ "esc" ], "toggle panel", "" )
             , ( [ "backspace" ], "delete last bubble", "delete & tab also do this" )
             , ( [ "-" ], "clear all bubbles", "" )
@@ -132,7 +135,8 @@ viewKeyboardControls =
             )
 
 
-viewOptions =
+viewOptions : Model -> H.Html Msg
+viewOptions model =
     H.div []
         [ H.text "hi"
         ]

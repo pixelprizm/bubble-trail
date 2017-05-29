@@ -51,6 +51,11 @@ config =
     .configPanel >> ConfigPanel.config
 
 
+gridConfig : Model -> Grid.GridConfig
+gridConfig =
+    config >> Config.getGridConfig
+
+
 init : ( Model, Cmd Msg )
 init =
     { configPanel = ConfigPanel.init
@@ -83,7 +88,7 @@ update msg model =
 
                 nearestGridToMouse : Grid.GridCoords
                 nearestGridToMouse =
-                    mouse |> Grid.getGridCoords ((config model) |> Config.getGridConfig)
+                    mouse |> Grid.getGridCoords (gridConfig model)
             in
                 if model.pressedKeys |> List.member KE.Space then
                     { model
@@ -133,20 +138,28 @@ update msg model =
             in
                 case possibleKeyChange of
                     Just (KE.KeyDown KE.Shift) ->
-                        let
-                            lockLineStart : Grid.GridCoords
-                            lockLineStart =
-                                case List.head model.spots of
-                                    Nothing ->
-                                        Grid.GridCoords 0 0
+                        { modelAfterInvisibling
+                            | lockLine = Just { start = getLastSpotCoords model, unsnappedEnd = Nothing }
+                        }
+                            ! []
 
-                                    Just spot ->
-                                        spot.gridCoords
-                        in
-                            { modelAfterInvisibling
-                                | lockLine = Just { start = lockLineStart, unsnappedEnd = Nothing }
-                            }
-                                ! []
+                    Just (KE.KeyDown KE.CharW) ->
+                        handleDirectionKey KE.CharW modelAfterInvisibling
+
+                    Just (KE.KeyDown KE.CharA) ->
+                        handleDirectionKey KE.CharA modelAfterInvisibling
+
+                    Just (KE.KeyDown KE.CharS) ->
+                        handleDirectionKey KE.CharS modelAfterInvisibling
+
+                    Just (KE.KeyDown KE.CharD) ->
+                        handleDirectionKey KE.CharD modelAfterInvisibling
+
+                    Just (KE.KeyDown KE.CharQ) ->
+                        handleDirectionKey KE.CharQ modelAfterInvisibling
+
+                    Just (KE.KeyDown KE.CharE) ->
+                        handleDirectionKey KE.CharE modelAfterInvisibling
 
                     Just (KE.KeyDown KE.CharL) ->
                         let
@@ -423,19 +436,19 @@ viewGuidelinesFrom model start =
     let
         lineStartCenter =
             Grid.getCenter
-                ((config model) |> Config.getGridConfig)
+                (gridConfig model)
                 start
     in
         Grid.getCardinalThetas (config model).shape
             |> List.concatMap
                 (\theta ->
                     ( lineStartCenter, 100, theta )
-                        |> Grid.getGridLine ((config model) |> Config.getGridConfig)
+                        |> Grid.getGridLine (gridConfig model)
                         |> List.map
                             (\gridCoords ->
                                 let
                                     { svg_x, svg_y } =
-                                        Grid.getCenter ((config model) |> Config.getGridConfig) gridCoords
+                                        Grid.getCenter (gridConfig model) gridCoords
                                             |> Grid.realToSvgCoordinates
 
                                     radius =
@@ -464,7 +477,7 @@ viewHoverSpot model =
                 let
                     { svg_x, svg_y } =
                         Grid.getCenter
-                            ((config model) |> Config.getGridConfig)
+                            (gridConfig model)
                             coords
                             |> Grid.realToSvgCoordinates
 
@@ -495,6 +508,16 @@ getNewSpotIndex model =
 
         Just spot ->
             spot.index + 1
+
+
+getLastSpotCoords : Model -> Grid.GridCoords
+getLastSpotCoords model =
+    case List.head model.spots of
+        Nothing ->
+            Grid.GridCoords 0 0
+
+        Just spot ->
+            spot.gridCoords
 
 
 insertNewSpotIfNotRepeat : Bool -> Grid.GridCoords -> Model -> Model
@@ -530,9 +553,24 @@ getProvisionalSpots model =
                     []
 
                 Just unsnappedEnd ->
-                    Grid.snapLine ((config model) |> Config.getGridConfig)
+                    Grid.snapLine (gridConfig model)
                         start
                         unsnappedEnd
-                        |> Grid.getGridLine ((config model) |> Config.getGridConfig)
+                        |> Grid.getGridLine (gridConfig model)
                         |> List.indexedMap
                             (\i coords -> Spot (i + getNewSpotIndex model) True coords)
+
+
+handleDirectionKey : KE.Key -> Model -> ( Model, Cmd Msg )
+handleDirectionKey key model =
+    let
+        previousCoords =
+            getLastSpotCoords model
+    in
+        case Grid.getAdjacentCoords (gridConfig model) key previousCoords of
+            Nothing ->
+                model ! []
+
+            Just newCoords ->
+                insertNewSpotIfNotRepeat True newCoords model
+                    ! []

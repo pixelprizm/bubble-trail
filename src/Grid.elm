@@ -1,8 +1,11 @@
 module Grid exposing (..)
 
+-- Others'
+
 import Debug
 import Window
 import Mouse
+import Keyboard.Extra
 
 
 type Shape
@@ -298,3 +301,58 @@ getGridLine config ( lineStartCenter, r, theta ) =
                         getGridCoords config snappedRealCoords
                 )
             |> List.reverse
+
+
+getAdjacentCoords : GridConfig -> Keyboard.Extra.Key -> GridCoords -> Maybe GridCoords
+getAdjacentCoords { shape } key { grid_x, grid_y } =
+    case shape of
+        Square ->
+            case key of
+                Keyboard.Extra.CharW ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharA ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharS ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharD ->
+                    Just (GridCoords grid_x grid_y)
+
+                _ ->
+                    Nothing
+
+        Hex PointyTop ->
+            case key of
+                Keyboard.Extra.CharW ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharA ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharS ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharD ->
+                    Just (GridCoords grid_x grid_y)
+
+                _ ->
+                    Nothing
+
+        Hex FlatTop ->
+            case key of
+                Keyboard.Extra.CharW ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharA ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharS ->
+                    Just (GridCoords grid_x grid_y)
+
+                Keyboard.Extra.CharD ->
+                    Just (GridCoords grid_x grid_y)
+
+                _ ->
+                    Nothing

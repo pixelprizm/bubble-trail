@@ -22,6 +22,11 @@ body {
   background-color: #22222e;
 }
 
+.elm-overlay {
+  z-index: 100;
+  display: none;
+}
+
 #app {
   position: absolute;
   top: 0;
@@ -155,7 +160,7 @@ body {
   font-weight: 100;
 }
 .ConfigPanelOptionsBody {
-  padding: 1em 1.5em;
+  padding: 1em 1.5em 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -207,9 +212,15 @@ body {
 .ConfigPanelKeyboardShortcutRow>.description>span>.sub {
   opacity: 0.5;
 }
-.ConfigPanelLicenseContainer {
+.ConfigPanelLicenseRow {
   display: flex;
   flex-direction: row;
   justify-content: flex-end;
   margin-top: 1em 0;
+}
+.ConfigPanelLicenseContainer {
+  opacity: 0.6;
+}
+.ConfigPanelLicenseContainer:hover {
+  opacity: 1;
 }
