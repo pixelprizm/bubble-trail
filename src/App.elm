@@ -163,9 +163,22 @@ update msg model =
                             }
                                 ! []
 
-                    Just (KE.KeyDown KE.Delete) ->
+                    Just (KE.KeyDown KE.Minus) ->
                         { modelAfterInvisibling | spots = [] }
                             ! []
+
+                    Just (KE.KeyDown KE.Escape) ->
+                        let
+                            configPanelModel =
+                                modelAfterInvisibling.configPanel
+                        in
+                            { modelAfterInvisibling
+                                | configPanel =
+                                    { configPanelModel
+                                        | panelOpen = not modelAfterInvisibling.configPanel.panelOpen
+                                    }
+                            }
+                                ! []
 
                     Just (KE.KeyUp KE.Shift) ->
                         { modelAfterInvisibling

@@ -87,13 +87,52 @@ view model =
                 ]
             , H.div
                 [ HA.class "ConfigPanelOptionsArea" ]
-                [ H.h1 [ HA.class "ConfigPanelTitle" ]
-                    [ H.text "Bubble Trail" ]
-                , H.h2 [ HA.class "ConfigPanelSubtitle" ]
-                    [ H.text "by eric gauderman" ]
+                [ H.h1 [ HA.class "ConfigPanelTitle" ] [ H.text "Bubble Trail" ]
+                , H.h2 [ HA.class "ConfigPanelSubtitle" ] [ H.text "by eric gauderman" ]
                 , H.div [ HA.class "ConfigPanelOptionsBody" ]
-                    [ H.text "hello world" ]
+                    [ H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "controls" ]
+                    , viewKeyboardControls
+                    , H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "options" ]
+                    , viewOptions
+                    , H.div [ HA.class "ConfigPanelLicenseContainer" ] [ CreativeCommonsLicense.view [] ]
+                    ]
                 ]
-            , CreativeCommonsLicense.view [ HA.class "license" ]
             ]
+        ]
+
+
+viewKeyboardControls =
+    let
+        keyboardControlw =
+            [ ( [ "space" ], "move cursor without drawing", "" )
+            , ( [ "shift" ], "snap to line", "" )
+            , ( [ "esc" ], "toggle panel", "" )
+            , ( [ "backspace" ], "delete last bubble", "delete & tab also do this" )
+            , ( [ "-" ], "clear all bubbles", "" )
+            , ( [ "x" ], "draw an invisible bubble", "" )
+            , ( [ "h" ], "change grid shape", "square, hex, hex vertical" )
+            , ( [ "w", "a", "s", "d" ], "draw one bubble in a direction", "also q & e for hex" )
+            ]
+    in
+        H.div []
+            (keyboardControlw
+                |> List.map
+                    (\( keys, description, sub ) ->
+                        H.div [ HA.class "ConfigPanelKeyboardShortcutRow" ]
+                            [ H.div [ HA.class "key" ] (keys |> List.map (\key -> H.span [] [ H.text key ]))
+                            , H.div [ HA.class "description" ]
+                                [ H.span []
+                                    [ H.span [] [ H.text description ]
+                                    , H.br [] []
+                                    , H.span [ HA.class "sub" ] [ H.text sub ]
+                                    ]
+                                ]
+                            ]
+                    )
+            )
+
+
+viewOptions =
+    H.div []
+        [ H.text "hi"
         ]
