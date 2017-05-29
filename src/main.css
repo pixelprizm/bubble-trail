@@ -101,13 +101,14 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  transition: transform 0.5s, opacity 0.5s;
+  transition: transform 0.5s, opacity 0.5s, background-color 0.1s;
 }
 .ConfigPanelToggle:hover {
   background-color: rgba(255,255,255,0.6);
 }
 .ConfigPanelToggle:active {
   background-color: rgba(255,255,255,0.4);
+  transition: transform 0.5s, opacity 0.5s, background-color 0s;
 }
 
 .ConfigPanelClosed .ConfigPanelToggle {
@@ -216,7 +217,7 @@ body {
   display: flex;
   flex-direction: row;
   justify-content: flex-end;
-  margin-top: 1em 0;
+  margin-top: 2em;
 }
 .ConfigPanelLicenseContainer {
   opacity: 0.6;

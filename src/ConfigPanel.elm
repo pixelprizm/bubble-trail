@@ -43,6 +43,29 @@ setConfig c model =
     { model | config = c }
 
 
+cycleGridShape : Model -> Model
+cycleGridShape model =
+    let
+        oldConfig =
+            model.config
+    in
+        { model
+            | config =
+                { oldConfig
+                    | shape =
+                        case (config model).shape of
+                            Grid.Square ->
+                                Grid.Hex Grid.PointyTop
+
+                            Grid.Hex Grid.PointyTop ->
+                                Grid.Hex Grid.FlatTop
+
+                            Grid.Hex Grid.FlatTop ->
+                                Grid.Square
+                }
+        }
+
+
 type Msg
     = SetConfig Config
     | SetPanelOpen Bool
@@ -92,8 +115,9 @@ view model =
                 , H.div [ HA.class "ConfigPanelOptionsBody" ]
                     [ H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "controls" ]
                     , viewKeyboardControls model
-                    , H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "options" ]
-                    , viewOptions model
+
+                    --, H.h3 [ HA.class "ConfigPanelHeading" ] [ H.text "options" ]
+                    --, viewOptions model
                     , H.div [ HA.class "ConfigPanelLicenseRow" ]
                         [ H.div [ HA.class "ConfigPanelLicenseContainer" ] [ CreativeCommonsLicense.view [] ]
                         ]
@@ -109,12 +133,13 @@ viewKeyboardControls model =
         keyboardControlw =
             [ ( [ "space" ], "hold to move cursor without drawing", "" )
             , ( [ "shift" ], "hold to snap to line", "" )
-            , ( [ "esc" ], "toggle panel", "" )
             , ( [ "backspace" ], "delete last bubble", "delete & tab also do this" )
-            , ( [ "-" ], "clear all bubbles", "" )
+            , ( [ "-" ], "clear all bubbles", "be careful, can't be undone" )
+
+            --, ( [ "w", "a", "s", "d" ], "draw one bubble in a direction", "also q & e for hex" )
             , ( [ "x" ], "draw an invisible bubble", "" )
             , ( [ "h" ], "change grid shape", "square, hex, hex vertical" )
-            , ( [ "w", "a", "s", "d" ], "draw one bubble in a direction", "also q & e for hex" )
+            , ( [ "esc" ], "toggle panel", "" )
             ]
     in
         H.div []

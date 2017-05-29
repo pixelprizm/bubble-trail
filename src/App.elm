@@ -120,7 +120,7 @@ update msg model =
                     { model | pressedKeys = pressedKeys }
 
                 modelAfterDeleting =
-                    if (pressedKeys |> List.member KE.Tab) || (pressedKeys |> List.member KE.BackSpace) then
+                    if (pressedKeys |> List.member KE.Tab) || (pressedKeys |> List.member KE.BackSpace) || (pressedKeys |> List.member KE.Delete) then
                         { modelWithPressedKeysUpdated
                             | spots = modelWithPressedKeysUpdated.spots |> List.drop 1
                         }
@@ -160,6 +160,13 @@ update msg model =
 
                     Just (KE.KeyDown KE.CharE) ->
                         handleDirectionKey KE.CharE modelAfterInvisibling
+
+                    Just (KE.KeyDown KE.CharH) ->
+                        { modelAfterInvisibling
+                            | configPanel =
+                                ConfigPanel.cycleGridShape modelAfterInvisibling.configPanel
+                        }
+                            ! []
 
                     Just (KE.KeyDown KE.CharL) ->
                         let
